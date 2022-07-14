@@ -2,6 +2,8 @@ package channel
 
 import (
 	"testing"
+
+	ezt "github.com/ezotaka/golib/testing"
 )
 
 func TestToChan(t *testing.T) {
@@ -9,7 +11,7 @@ func TestToChan(t *testing.T) {
 		done   <-chan any
 		values []int
 	}
-	tests := []ChanFuncTestCase[int, args]{
+	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
 			"length=0",
 			args{
@@ -39,7 +41,7 @@ func TestToChan(t *testing.T) {
 		return "ToChan", ToChan(a.done, a.values...)
 	}
 
-	ExecReadOnlyChanFuncTest(t, tests, call)
+	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
 }
 
 func TestRepeat(t *testing.T) {
@@ -47,7 +49,7 @@ func TestRepeat(t *testing.T) {
 		done   <-chan any
 		values []int
 	}
-	tests := []ChanFuncTestCase[int, args]{
+	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
 			"1",
 			args{
@@ -84,7 +86,7 @@ func TestRepeat(t *testing.T) {
 	call := func(a args) (string, <-chan int) {
 		return "Repeat", Take(a.done, Repeat(a.done, a.values...), 5)
 	}
-	ExecReadOnlyChanFuncTest(t, tests, call)
+	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
 }
 
 func TestRepeatFunc(t *testing.T) {
@@ -97,7 +99,7 @@ func TestRepeatFunc(t *testing.T) {
 		done <-chan any
 		fn   func() int
 	}
-	tests := []ChanFuncTestCase[int, args]{
+	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
 			"5 count",
 			args{
@@ -118,7 +120,7 @@ func TestRepeatFunc(t *testing.T) {
 	call := func(a args) (string, <-chan int) {
 		return "RepeatFunc", Take(a.done, RepeatFunc(a.done, a.fn), 5)
 	}
-	ExecReadOnlyChanFuncTest(t, tests, call)
+	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
 }
 
 func TestTake(t *testing.T) {
@@ -128,7 +130,7 @@ func TestTake(t *testing.T) {
 		num       int
 	}
 	done := make(chan any)
-	tests := []ChanFuncTestCase[int, args]{
+	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
 			"take 1",
 			args{
@@ -170,5 +172,5 @@ func TestTake(t *testing.T) {
 		return "Take", Take(a.done, a.valueChan, a.num)
 	}
 
-	ExecReadOnlyChanFuncTest(t, tests, call)
+	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
 }
