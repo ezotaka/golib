@@ -13,28 +13,28 @@ func TestToChan(t *testing.T) {
 	}
 	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
-			"length=0",
-			args{
+			Name: "length=0",
+			Args: args{
 				done:   make(<-chan any),
 				values: []int{},
 			},
-			[]int{},
+			Want: []int{},
 		},
 		{
-			"length=1",
-			args{
+			Name: "length=1",
+			Args: args{
 				done:   make(<-chan any),
 				values: []int{1},
 			},
-			[]int{1},
+			Want: []int{1},
 		},
 		{
-			"length=2",
-			args{
+			Name: "length=2",
+			Args: args{
 				done:   make(<-chan any),
 				values: []int{1, 2},
 			},
-			[]int{1, 2},
+			Want: []int{1, 2},
 		},
 	}
 	call := func(a args) (string, <-chan int) {
@@ -51,36 +51,36 @@ func TestRepeat(t *testing.T) {
 	}
 	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
-			"1",
-			args{
+			Name: "1",
+			Args: args{
 				done:   make(<-chan any),
 				values: []int{1},
 			},
-			[]int{1, 1, 1, 1, 1},
+			Want: []int{1, 1, 1, 1, 1},
 		},
 		{
-			"1,2",
-			args{
+			Name: "1,2",
+			Args: args{
 				done:   make(<-chan any),
 				values: []int{1, 2},
 			},
-			[]int{1, 2, 1, 2, 1},
+			Want: []int{1, 2, 1, 2, 1},
 		},
 		{
-			"1,2,3,4,5,6",
-			args{
+			Name: "1,2,3,4,5,6",
+			Args: args{
 				done:   make(<-chan any),
 				values: []int{1, 2, 3, 4, 5, 6},
 			},
-			[]int{1, 2, 3, 4, 5},
+			Want: []int{1, 2, 3, 4, 5},
 		},
 		{
-			"no params",
-			args{
+			Name: "no params",
+			Args: args{
 				done:   make(<-chan any),
 				values: []int{},
 			},
-			[]int{0, 0, 0, 0, 0},
+			Want: []int{0, 0, 0, 0, 0},
 		},
 	}
 	call := func(a args) (string, <-chan int) {
@@ -101,20 +101,20 @@ func TestRepeatFunc(t *testing.T) {
 	}
 	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
-			"5 count",
-			args{
+			Name: "5 count",
+			Args: args{
 				done: make(<-chan any),
 				fn:   increment,
 			},
-			[]int{1, 2, 3, 4, 5},
+			Want: []int{1, 2, 3, 4, 5},
 		},
 		{
-			"nil func",
-			args{
+			Name: "nil func",
+			Args: args{
 				done: make(<-chan any),
 				fn:   nil,
 			},
-			[]int{0, 0, 0, 0, 0},
+			Want: []int{0, 0, 0, 0, 0},
 		},
 	}
 	call := func(a args) (string, <-chan int) {
@@ -132,40 +132,40 @@ func TestTake(t *testing.T) {
 	done := make(chan any)
 	tests := []ezt.ChanFuncTestCase[int, args]{
 		{
-			"take 1",
-			args{
+			Name: "take 1",
+			Args: args{
 				done:      done,
 				valueChan: ToChan(done, 1, 2),
 				num:       1,
 			},
-			[]int{1},
+			Want: []int{1},
 		},
 		{
-			"take 2",
-			args{
+			Name: "take 2",
+			Args: args{
 				done:      done,
 				valueChan: ToChan(done, 1, 2),
 				num:       2,
 			},
-			[]int{1, 2},
+			Want: []int{1, 2},
 		},
 		{
-			"try to take closed",
-			args{
+			Name: "try to take closed",
+			Args: args{
 				done:      done,
 				valueChan: ToChan(done, 1, 2),
 				num:       3,
 			},
-			[]int{1, 2, 0},
+			Want: []int{1, 2, 0},
 		},
 		{
-			"nil channel",
-			args{
+			Name: "nil channel",
+			Args: args{
 				done:      done,
 				valueChan: nil,
 				num:       3,
 			},
-			[]int{},
+			Want: []int{},
 		},
 	}
 	call := func(a args) (string, <-chan int) {
