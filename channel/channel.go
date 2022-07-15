@@ -30,6 +30,32 @@ func Or[T any](channels ...<-chan T) <-chan T {
 	return orDone
 }
 
+// return channel which is closed when channel or done is closed
+func OrDone[T any](
+	done <-chan any,
+	channel <-chan T,
+) <-chan T {
+	valChan := make(chan T)
+	go func() {
+		defer close(valChan)
+		for {
+			select {
+			case <-done:
+				return
+			case v, ok := <-channel:
+				if !ok {
+					return
+				}
+				select {
+				case valChan <- v:
+				case <-done:
+				}
+			}
+		}
+	}()
+	return valChan
+}
+
 func ToChan[T any](done <-chan any, values ...T) <-chan T {
 	ch := make(chan T, len(values))
 	go func() {

@@ -14,12 +14,21 @@ type ChanFuncTestCase[C any, A any] struct {
 	// Args passed to the target method
 	Args A
 
-	// Conditions for closing the "done" channel
+	// Index condition for closing the "done" channel
 	// This is called on every iteration
-	IsDone func(
+	IsDoneByIndex func(
 		int, // now index number
+	) bool // to close "done" channel or not
+
+	// Value condition for closing the "done" channel
+	// This is called on every iteration
+	IsDoneByValue func(
 		C, // now channel value
 	) bool // to close "done" channel or not
+
+	// Value condition for closing the "done" channel
+	// This is called on every iteration
+	IsDoneByTime time.Duration // since test case started
 
 	// Expected channel values
 	Want []C
@@ -42,28 +51,9 @@ func ExecReadOnlyChanFuncTest[
 
 			name, gotChan := call(done, ttt.Args)
 
-			// close done channel while iterating gotChan
-			index := 0
-			closed := false
-			closer := func(val C) {
-				if closed || ttt.IsDone == nil {
-					return
-				}
-				if ttt.IsDone(index, val) {
-					close(done)
-					closed = true
-
-					// wait for goroutine in gotChan finished
-					// not definitive but sufficient
-					time.Sleep(time.Second) // TODO: too long?
-				}
-				index++
-			}
-
 			got := []C{}
-			for val := range gotChan {
+			for val := range orTestCaseDone(done, &ttt, gotChan) {
 				got = append(got, val)
-				closer(val)
 			}
 
 			if !reflect.DeepEqual(got, ttt.Want) {
@@ -71,4 +61,44 @@ func ExecReadOnlyChanFuncTest[
 			}
 		})
 	}
+}
+
+// Return channel which is closed when c is closed or conditions in test case are met
+func orTestCaseDone[C any, A any](done chan any, t *ChanFuncTestCase[C, A], c <-chan C) <-chan C {
+	returnChan := make(chan C)
+	indexChan := make(chan int)
+	valChan := make(chan C)
+
+	go func() {
+		defer close(returnChan)
+		index := 0
+		for v := range c {
+			returnChan <- v
+			indexChan <- index
+			valChan <- v
+		}
+	}()
+
+	go func() {
+	loop:
+		for {
+			select {
+			case <-time.After(t.IsDoneByTime):
+				if t.IsDoneByTime > 0 {
+					break loop
+				}
+			case i := <-indexChan:
+				if t.IsDoneByIndex != nil && t.IsDoneByIndex(i) {
+					break loop
+				}
+			case v := <-valChan:
+				if t.IsDoneByValue != nil && t.IsDoneByValue(v) {
+					break loop
+				}
+			}
+		}
+		close(done)
+	}()
+
+	return returnChan
 }

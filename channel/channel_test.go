@@ -2,9 +2,46 @@ package channel
 
 import (
 	"testing"
+	"time"
 
 	ezt "github.com/ezotaka/golib/testing"
 )
+
+func TestOrDone(t *testing.T) {
+	type args struct {
+		channel <-chan int
+	}
+	tests := []ezt.ChanFuncTestCase[int, args]{
+		{
+			Name: "no interruption due to done",
+			Args: args{
+				channel: ToChan(make(<-chan any), 1, 2, 3),
+			},
+			Want: []int{1, 2, 3},
+		},
+		{
+			Name:          "interruption due to done",
+			IsDoneByValue: func(v int) bool { return v == 2 },
+			Args: args{
+				channel: ToChan(make(<-chan any), 1, 2, 3),
+			},
+			Want: []int{1, 2},
+		},
+		{
+			Name:         "blocked by reading nil channel, but done after 100 msec",
+			IsDoneByTime: 100 * time.Millisecond,
+			Args: args{
+				channel: nil,
+			},
+			Want: []int{},
+		},
+	}
+	call := func(done <-chan any, a args) (string, <-chan int) {
+		return "OrDone", OrDone(done, a.channel)
+	}
+
+	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
+}
 
 func TestToChan(t *testing.T) {
 	type args struct {
