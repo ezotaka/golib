@@ -35,13 +35,24 @@ type TestCase[C any, A any] struct {
 	Want []C
 }
 
-// TODO: rename method and comment
-func DoTest[
+// Execute the function to be tested using caller,
+// and read returned channel to end,
+// then return read values as []C.
+// The function to be tested like func(done <- chan any, [spread test.Args]) <- chan C
+// done channel is closed when conditions in TestCase are met,
+func GetTestedValues[
+	// Type of returned channel
 	C any,
+	// Type of args passed to the test target method
 	A any,
 ](
+	// Test case for the function to be tested
 	test TestCase[C, A],
-	caller func(<-chan any, A) <-chan C,
+	// caller executes the function to be tested
+	caller func(
+		<-chan any, // done channel
+		A, // Args passed to the test target method
+	) <-chan C, // Return of the function to be tested
 ) []C {
 	done := make(chan any)
 	returnChan := caller(done, test.Args)

@@ -7,7 +7,7 @@ import (
 )
 
 func TestOrDone(t *testing.T) {
-	// test target method
+	// function to be tested
 	// count up every 100 msec until end
 	counter := func(end int) <-chan int {
 		valChan := make(chan int)
@@ -59,7 +59,7 @@ func TestOrDone(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := DoTest(tt, caller)
+			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
 			}
@@ -99,7 +99,7 @@ func TestToChan(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := DoTest(tt, caller)
+			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
 			}
@@ -146,7 +146,7 @@ func TestRepeat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := DoTest(tt, caller)
+			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
 			}
@@ -185,7 +185,7 @@ func TestRepeatFunc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := DoTest(tt, caller)
+			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
 			}
@@ -238,7 +238,7 @@ func TestTake(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := DoTest(tt, caller)
+			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Take() = %v, want %v", got, tt.Want)
 			}

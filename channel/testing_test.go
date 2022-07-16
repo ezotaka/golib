@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func TestDoTest(t *testing.T) {
-	// test target method
+func TestGetTestedValues(t *testing.T) {
+	// function to be tested
 	// count up every 100 msec until end or done
 	counter := func(done <-chan any, end int) <-chan int {
 		valChan := make(chan int)
@@ -340,7 +340,7 @@ func TestDoTest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := DoTest(tt.args.test, tt.args.caller); !reflect.DeepEqual(got, tt.want) {
+			if got := GetTestedValues(tt.args.test, tt.args.caller); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DoTest() = %v, want %v", got, tt.want)
 			}
 		})
