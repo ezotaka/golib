@@ -7,6 +7,25 @@ import (
 )
 
 func TestOrDone(t *testing.T) {
+	// test target method
+	// count up every 100 msec until end
+	counter := func(end int) <-chan int {
+		valChan := make(chan int)
+		go func() {
+			defer close(valChan)
+			count := 1
+			for {
+				time.Sleep(100 * time.Microsecond)
+				valChan <- count
+				if count >= end {
+					return
+				}
+				count++
+			}
+		}()
+		return valChan
+	}
+
 	type args struct {
 		channel <-chan int
 	}
@@ -14,7 +33,7 @@ func TestOrDone(t *testing.T) {
 		{
 			Name: "no interruption due to done",
 			Args: args{
-				channel: ToChan(make(<-chan any), 1, 2, 3),
+				channel: counter(3),
 			},
 			Want: []int{1, 2, 3},
 		},
@@ -22,7 +41,7 @@ func TestOrDone(t *testing.T) {
 			Name:          "interruption due to done",
 			IsDoneByValue: func(v int) bool { return v == 2 },
 			Args: args{
-				channel: ToChan(make(<-chan any), 1, 2, 3),
+				channel: counter(3),
 			},
 			Want: []int{1, 2},
 		},
