@@ -1,11 +1,11 @@
-package testing
+package channel
 
 import (
 	"time"
 )
 
 // Test case for function like func(done <-chan any, [spread Args]) <-chan C
-type ChanFuncTestCase[C any, A any] struct {
+type TestCase[C any, A any] struct {
 	// Name of test case
 	Name string
 
@@ -32,15 +32,15 @@ type ChanFuncTestCase[C any, A any] struct {
 	Want []C
 }
 
-func ExecChanFuncTest[
+func DoTest[
 	C any,
 	A any,
 ](
-	test ChanFuncTestCase[C, A],
-	call func(<-chan any, A) <-chan C,
+	test TestCase[C, A],
+	caller func(<-chan any, A) <-chan C,
 ) []C {
 	done := make(chan any)
-	returnChan := call(done, test.Args)
+	returnChan := caller(done, test.Args)
 	got := []C{}
 	for val := range orTestCaseDone(done, &test, returnChan) {
 		got = append(got, val)
@@ -49,7 +49,7 @@ func ExecChanFuncTest[
 }
 
 // Return channel which is closed when c is closed or conditions in test case are met
-func orTestCaseDone[C any, A any](done chan any, t *ChanFuncTestCase[C, A], c <-chan C) <-chan C {
+func orTestCaseDone[C any, A any](done chan any, t *TestCase[C, A], c <-chan C) <-chan C {
 	returnChan := make(chan C)
 	indexChan := make(chan int)
 	valChan := make(chan C)

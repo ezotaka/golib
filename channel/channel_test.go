@@ -4,15 +4,13 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	ezt "github.com/ezotaka/golib/testing"
 )
 
 func TestOrDone(t *testing.T) {
 	type args struct {
 		channel <-chan int
 	}
-	tests := []ezt.ChanFuncTestCase[int, args]{
+	tests := []TestCase[int, args]{
 		{
 			Name: "no interruption due to done",
 			Args: args{
@@ -42,7 +40,7 @@ func TestOrDone(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := ezt.ExecChanFuncTest(tt, caller)
+			got := DoTest(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
 			}
@@ -54,7 +52,7 @@ func TestToChan(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	tests := []ezt.ChanFuncTestCase[int, args]{
+	tests := []TestCase[int, args]{
 		{
 			Name: "length=0",
 			Args: args{
@@ -82,7 +80,7 @@ func TestToChan(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := ezt.ExecChanFuncTest(tt, caller)
+			got := DoTest(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
 			}
@@ -94,7 +92,7 @@ func TestRepeat(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	tests := []ezt.ChanFuncTestCase[int, args]{
+	tests := []TestCase[int, args]{
 		{
 			Name: "1",
 			Args: args{
@@ -129,7 +127,7 @@ func TestRepeat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := ezt.ExecChanFuncTest(tt, caller)
+			got := DoTest(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
 			}
@@ -147,7 +145,7 @@ func TestRepeatFunc(t *testing.T) {
 	type args struct {
 		fn func() int
 	}
-	tests := []ezt.ChanFuncTestCase[int, args]{
+	tests := []TestCase[int, args]{
 		{
 			Name: "5 count",
 			Args: args{
@@ -168,7 +166,7 @@ func TestRepeatFunc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := ezt.ExecChanFuncTest(tt, caller)
+			got := DoTest(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
 			}
@@ -182,7 +180,7 @@ func TestTake(t *testing.T) {
 		valueChan <-chan int
 		num       int
 	}
-	tests := []ezt.ChanFuncTestCase[int, args]{
+	tests := []TestCase[int, args]{
 		{
 			Name: "take 1",
 			Args: args{
@@ -221,7 +219,7 @@ func TestTake(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got := ezt.ExecChanFuncTest(tt, caller)
+			got := DoTest(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Take() = %v, want %v", got, tt.Want)
 			}
