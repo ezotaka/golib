@@ -1,8 +1,6 @@
 package testing
 
 import (
-	"reflect"
-	"testing"
 	"time"
 )
 
@@ -34,33 +32,20 @@ type ChanFuncTestCase[C any, A any] struct {
 	Want []C
 }
 
-// Execute Table Driven Test for function which returns <-chan C
-func ExecReadOnlyChanFuncTest[
+func ExecChanFuncTest[
 	C any,
 	A any,
-	T ChanFuncTestCase[C, A],
 ](
-	t *testing.T,
-	tests []T,
-	call func(<-chan any, A) (string, <-chan C),
-) {
-	for _, tt := range tests {
-		ttt := ChanFuncTestCase[C, A](tt)
-		t.Run(ttt.Name, func(t *testing.T) {
-			done := make(chan any)
-
-			name, gotChan := call(done, ttt.Args)
-
-			got := []C{}
-			for val := range orTestCaseDone(done, &ttt, gotChan) {
-				got = append(got, val)
-			}
-
-			if !reflect.DeepEqual(got, ttt.Want) {
-				t.Errorf("%s() = %v, want %v", name, got, ttt.Want)
-			}
-		})
+	test ChanFuncTestCase[C, A],
+	call func(<-chan any, A) <-chan C,
+) []C {
+	done := make(chan any)
+	returnChan := call(done, test.Args)
+	got := []C{}
+	for val := range orTestCaseDone(done, &test, returnChan) {
+		got = append(got, val)
 	}
+	return got
 }
 
 // Return channel which is closed when c is closed or conditions in test case are met

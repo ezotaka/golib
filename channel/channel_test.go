@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -36,11 +37,17 @@ func TestOrDone(t *testing.T) {
 			Want: []int{},
 		},
 	}
-	call := func(done <-chan any, a args) (string, <-chan int) {
-		return "OrDone", OrDone(done, a.channel)
+	caller := func(done <-chan any, a args) <-chan int {
+		return OrDone(done, a.channel)
 	}
-
-	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := ezt.ExecChanFuncTest(tt, caller)
+			if !reflect.DeepEqual(got, tt.Want) {
+				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
 }
 
 func TestToChan(t *testing.T) {
@@ -70,11 +77,17 @@ func TestToChan(t *testing.T) {
 			Want: []int{1, 2},
 		},
 	}
-	call := func(done <-chan any, a args) (string, <-chan int) {
-		return "ToChan", ToChan(done, a.values...)
+	caller := func(done <-chan any, a args) <-chan int {
+		return ToChan(done, a.values...)
 	}
-
-	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := ezt.ExecChanFuncTest(tt, caller)
+			if !reflect.DeepEqual(got, tt.Want) {
+				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
 }
 
 func TestRepeat(t *testing.T) {
@@ -111,10 +124,18 @@ func TestRepeat(t *testing.T) {
 			Want: []int{0, 0, 0, 0, 0},
 		},
 	}
-	call := func(done <-chan any, a args) (string, <-chan int) {
-		return "Repeat", Take(done, Repeat(done, a.values...), 5)
+	caller := func(done <-chan any, a args) <-chan int {
+		return Take(done, Repeat(done, a.values...), 5)
 	}
-	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := ezt.ExecChanFuncTest(tt, caller)
+			if !reflect.DeepEqual(got, tt.Want) {
+				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
+
 }
 
 func TestRepeatFunc(t *testing.T) {
@@ -142,10 +163,18 @@ func TestRepeatFunc(t *testing.T) {
 			Want: []int{0, 0, 0, 0, 0},
 		},
 	}
-	call := func(done <-chan any, a args) (string, <-chan int) {
-		return "RepeatFunc", Take(done, RepeatFunc(done, a.fn), 5)
+	caller := func(done <-chan any, a args) <-chan int {
+		return Take(done, RepeatFunc(done, a.fn), 5)
 	}
-	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := ezt.ExecChanFuncTest(tt, caller)
+			if !reflect.DeepEqual(got, tt.Want) {
+				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
+
 }
 
 func TestTake(t *testing.T) {
@@ -187,9 +216,15 @@ func TestTake(t *testing.T) {
 			Want: []int{},
 		},
 	}
-	call := func(done <-chan any, a args) (string, <-chan int) {
-		return "Take", Take(done, a.valueChan, a.num)
+	caller := func(done <-chan any, a args) <-chan int {
+		return Take(done, a.valueChan, a.num)
 	}
-
-	ezt.ExecReadOnlyChanFuncTest(t, tests, call)
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			got := ezt.ExecChanFuncTest(tt, caller)
+			if !reflect.DeepEqual(got, tt.Want) {
+				t.Errorf("Take() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
 }
