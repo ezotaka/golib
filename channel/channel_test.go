@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -54,8 +55,8 @@ func TestOrDone(t *testing.T) {
 			Want: []int{},
 		},
 	}
-	caller := func(done <-chan any, a args) <-chan int {
-		return OrDone(done, a.channel)
+	caller := func(ctx context.Context, a args) <-chan int {
+		return OrDone(ctx, a.channel)
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -94,8 +95,8 @@ func TestToChan(t *testing.T) {
 			Want: []int{1, 2},
 		},
 	}
-	caller := func(done <-chan any, a args) <-chan int {
-		return ToChan(done, a.values...)
+	caller := func(ctx context.Context, a args) <-chan int {
+		return ToChan(ctx, a.values...)
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -141,8 +142,8 @@ func TestRepeat(t *testing.T) {
 			Want: []int{0, 0, 0, 0, 0},
 		},
 	}
-	caller := func(done <-chan any, a args) <-chan int {
-		return Take(done, Repeat(done, a.values...), 5)
+	caller := func(ctx context.Context, a args) <-chan int {
+		return Take(ctx, Repeat(ctx, a.values...), 5)
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -180,8 +181,8 @@ func TestRepeatFunc(t *testing.T) {
 			Want: []int{0, 0, 0, 0, 0},
 		},
 	}
-	caller := func(done <-chan any, a args) <-chan int {
-		return Take(done, RepeatFunc(done, a.fn), 5)
+	caller := func(ctx context.Context, a args) <-chan int {
+		return Take(ctx, RepeatFunc(ctx, a.fn), 5)
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -191,7 +192,6 @@ func TestRepeatFunc(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestTake(t *testing.T) {
@@ -203,7 +203,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 1",
 			Args: args{
-				valueChan: ToChan(make(<-chan any), 1, 2),
+				valueChan: ToChan(context.TODO(), 1, 2), // TODO
 				num:       1,
 			},
 			Want: []int{1},
@@ -211,7 +211,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 2",
 			Args: args{
-				valueChan: ToChan(make(<-chan any), 1, 2),
+				valueChan: ToChan(context.TODO(), 1, 2), // TODO
 				num:       2,
 			},
 			Want: []int{1, 2},
@@ -219,7 +219,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "try to take closed",
 			Args: args{
-				valueChan: ToChan(make(<-chan any), 1, 2),
+				valueChan: ToChan(context.TODO(), 1, 2), // TODO
 				num:       3,
 			},
 			Want: []int{1, 2, 0},
@@ -233,8 +233,8 @@ func TestTake(t *testing.T) {
 			Want: []int{},
 		},
 	}
-	caller := func(done <-chan any, a args) <-chan int {
-		return Take(done, a.valueChan, a.num)
+	caller := func(ctx context.Context, a args) <-chan int {
+		return Take(ctx, a.valueChan, a.num)
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
