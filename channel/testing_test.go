@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -9,14 +10,14 @@ import (
 func TestGetTestedValues(t *testing.T) {
 	// function to be tested
 	// count up every 100 msec until end or done
-	counter := func(done <-chan any, end int) <-chan int {
+	counter := func(ctx context.Context, end int) <-chan int {
 		valChan := make(chan int)
 		go func() {
 			defer close(valChan)
 			count := 1
 			for {
 				select {
-				case <-done:
+				case <-ctx.Done():
 					return
 				case <-time.After(100 * time.Millisecond):
 					valChan <- count
@@ -35,7 +36,7 @@ func TestGetTestedValues(t *testing.T) {
 
 	type args struct {
 		test   TestCase[int, counterArgs]
-		caller func(<-chan any, counterArgs) <-chan int
+		caller func(context.Context, counterArgs) <-chan int
 	}
 	tests := []struct {
 		name string
@@ -50,8 +51,8 @@ func TestGetTestedValues(t *testing.T) {
 						end: 3,
 					},
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2, 3},
@@ -65,8 +66,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneAtFirst: true,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{},
@@ -80,8 +81,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByIndex: func(i int) bool { return i == 0 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -95,8 +96,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByIndex: func(i int) bool { return i == 1 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2},
@@ -110,8 +111,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByIndex: func(i int) bool { return i == 5 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2, 3},
@@ -125,8 +126,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByValue: func(v int) bool { return v == 1 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -140,8 +141,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByValue: func(v int) bool { return v == 2 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2},
@@ -156,8 +157,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByValue: func(v int) bool { return v == 5 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2, 3},
@@ -171,8 +172,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByTime: 50 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{},
@@ -186,8 +187,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByTime: 250 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2},
@@ -201,8 +202,8 @@ func TestGetTestedValues(t *testing.T) {
 					},
 					IsDoneByTime: 500 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2, 3},
@@ -217,8 +218,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByIndex: func(i int) bool { return i == 1 },
 					IsDoneByValue: func(v int) bool { return v == 2 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1, 2},
@@ -233,8 +234,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByIndex: func(i int) bool { return i == 0 },
 					IsDoneByValue: func(v int) bool { return v == 2 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -249,8 +250,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByIndex: func(i int) bool { return i == 2 },
 					IsDoneByValue: func(v int) bool { return v == 1 },
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -265,8 +266,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByIndex: func(i int) bool { return i == 0 },
 					IsDoneByTime:  250 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -281,8 +282,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByIndex: func(i int) bool { return i == 2 },
 					IsDoneByTime:  150 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -297,8 +298,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByValue: func(v int) bool { return v == 1 },
 					IsDoneByTime:  250 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -313,8 +314,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByValue: func(v int) bool { return v == 2 },
 					IsDoneByTime:  150 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{1},
@@ -331,8 +332,8 @@ func TestGetTestedValues(t *testing.T) {
 					IsDoneByValue: func(v int) bool { return v == 2 },
 					IsDoneByTime:  250 * time.Millisecond,
 				},
-				caller: func(done <-chan any, a counterArgs) <-chan int {
-					return counter(done, a.end)
+				caller: func(ctx context.Context, a counterArgs) <-chan int {
+					return counter(ctx, a.end)
 				},
 			},
 			want: []int{},

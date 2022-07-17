@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"time"
 )
 
@@ -50,22 +51,29 @@ func GetTestedValues[
 	test TestCase[C, A],
 	// caller executes the function to be tested
 	caller func(
-		<-chan any, // done channel
+		context.Context, // context
 		A, // Args passed to the test target method
 	) <-chan C, // Return of the function to be tested
 ) []C {
-	done := make(chan any)
-	returnChan := caller(done, test.Args)
+	ctx, cancel := context.WithCancel(context.Background())
+	if test.IsDoneAtFirst {
+		// already past the deadline
+		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(-1*time.Second))
+	}
+	if test.IsDoneByTime > 0 {
+		ctx, cancel = context.WithTimeout(ctx, test.IsDoneByTime)
+	}
+
+	returnChan := caller(ctx, test.Args)
 	got := []C{}
-	for val := range orTestCaseDone(done, &test, returnChan) {
+	for val := range orTestCaseDone(&ctx, &cancel, &test, returnChan) {
 		got = append(got, val)
 	}
 	return got
 }
 
 // Return channel which is closed when c is closed or conditions in test case are met
-func orTestCaseDone[C any, A any](done chan any, t *TestCase[C, A], c <-chan C) <-chan C {
-	doneClosed := make(chan any)
+func orTestCaseDone[C any, A any](ctx *context.Context, cancel *context.CancelFunc, t *TestCase[C, A], c <-chan C) <-chan C {
 	returnChan := make(chan C)
 
 	// * type declarations inside generic functions are not currently supported
@@ -74,15 +82,6 @@ func orTestCaseDone[C any, A any](done chan any, t *TestCase[C, A], c <-chan C) 
 		value C
 	})
 
-	closeDone := func() {
-		close(done)
-		close(doneClosed)
-	}
-
-	if t.IsDoneAtFirst {
-		closeDone()
-	}
-
 	// main goroutine which iterate c channel
 	go func() {
 		defer close(returnChan)
@@ -90,7 +89,7 @@ func orTestCaseDone[C any, A any](done chan any, t *TestCase[C, A], c <-chan C) 
 		index := 0
 		for v := range c {
 			select {
-			case <-doneClosed:
+			case <-(*ctx).Done():
 				// wait a bit until c channel maybe closed
 				time.Sleep(10 * time.Millisecond)
 			case returnChan <- v:
@@ -106,25 +105,11 @@ func orTestCaseDone[C any, A any](done chan any, t *TestCase[C, A], c <-chan C) 
 		}
 	}()
 
-	if t.IsDoneByTime > 0 {
-		go func() {
-			for {
-				select {
-				case <-doneClosed:
-					return
-				case <-time.After(t.IsDoneByTime):
-					closeDone()
-					return
-				}
-			}
-		}()
-	}
-
 	go func() {
 	loop:
 		for {
 			select {
-			case <-doneClosed:
+			case <-(*ctx).Done():
 				return
 			case f := <-forChan:
 				if t.IsDoneByIndex != nil && t.IsDoneByIndex(f.index) {
@@ -135,7 +120,7 @@ func orTestCaseDone[C any, A any](done chan any, t *TestCase[C, A], c <-chan C) 
 				}
 			}
 		}
-		closeDone()
+		(*cancel)()
 	}()
 
 	return returnChan

@@ -1,5 +1,7 @@
 package channel
 
+import "context"
+
 func Or[T any](channels ...<-chan T) <-chan T {
 	switch len(channels) {
 	case 0:
@@ -32,7 +34,7 @@ func Or[T any](channels ...<-chan T) <-chan T {
 
 // return channel which is closed when channel or done is closed
 func OrDone[T any](
-	done <-chan any,
+	ctx context.Context,
 	channel <-chan T,
 ) <-chan T {
 	valChan := make(chan T)
@@ -40,7 +42,7 @@ func OrDone[T any](
 		defer close(valChan)
 		for {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
 			case v, ok := <-channel:
 				if !ok {
@@ -48,7 +50,7 @@ func OrDone[T any](
 				}
 				select {
 				case valChan <- v:
-				case <-done:
+				case <-ctx.Done():
 				}
 			}
 		}
@@ -56,13 +58,13 @@ func OrDone[T any](
 	return valChan
 }
 
-func ToChan[T any](done <-chan any, values ...T) <-chan T {
+func ToChan[T any](ctx context.Context, values ...T) <-chan T {
 	ch := make(chan T, len(values))
 	go func() {
 		defer close(ch)
 		for _, v := range values {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
 			case ch <- v:
 			}
@@ -71,7 +73,7 @@ func ToChan[T any](done <-chan any, values ...T) <-chan T {
 	return ch
 }
 
-func Repeat[T any](done <-chan any, values ...T) <-chan T {
+func Repeat[T any](ctx context.Context, values ...T) <-chan T {
 	valuesChan := make(chan T)
 	go func() {
 		defer close(valuesChan)
@@ -81,7 +83,7 @@ func Repeat[T any](done <-chan any, values ...T) <-chan T {
 		for {
 			for _, v := range values {
 				select {
-				case <-done:
+				case <-ctx.Done():
 					return
 				case valuesChan <- v:
 				}
@@ -92,7 +94,7 @@ func Repeat[T any](done <-chan any, values ...T) <-chan T {
 }
 
 func RepeatFunc[T any](
-	done <-chan any,
+	ctx context.Context,
 	fn func() T,
 ) <-chan T {
 	valueChan := make(chan T)
@@ -103,7 +105,7 @@ func RepeatFunc[T any](
 		}
 		for {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
 			case valueChan <- fn():
 			}
@@ -113,7 +115,7 @@ func RepeatFunc[T any](
 }
 
 func Take[T any](
-	done <-chan any,
+	ctx context.Context,
 	valueChan <-chan T,
 	num int,
 ) <-chan T {
@@ -125,7 +127,7 @@ func Take[T any](
 		}
 		for i := 0; i < num; i++ {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
 			case takeChan <- <-valueChan:
 			}
