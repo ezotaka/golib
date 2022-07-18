@@ -58,16 +58,13 @@ func OrDone[T any](
 	return valChan
 }
 
-func ToChan[T any](ctx context.Context, values ...T) <-chan T {
+// Convert values to channel
+func ToChan[T any](values ...T) <-chan T {
 	ch := make(chan T, len(values))
 	go func() {
 		defer close(ch)
 		for _, v := range values {
-			select {
-			case <-ctx.Done():
-				return
-			case ch <- v:
-			}
+			ch <- v
 		}
 	}()
 	return ch

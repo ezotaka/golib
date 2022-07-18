@@ -97,7 +97,7 @@ func TestToChan(t *testing.T) {
 		},
 	}
 	caller := func(ctx context.Context, a args) <-chan int {
-		return ToChan(ctx, a.values...)
+		return ToChan(a.values...)
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -207,7 +207,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 1",
 			Args: args{
-				valueChan: ToChan(context.TODO(), 1, 2), // TODO
+				valueChan: ToChan(1, 2),
 				num:       1,
 			},
 			Want: []int{1},
@@ -215,7 +215,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 2",
 			Args: args{
-				valueChan: ToChan(context.TODO(), 1, 2), // TODO
+				valueChan: ToChan(1, 2),
 				num:       2,
 			},
 			Want: []int{1, 2},
@@ -223,7 +223,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "try to take closed",
 			Args: args{
-				valueChan: ToChan(context.TODO(), 1, 2), // TODO
+				valueChan: ToChan(1, 2),
 				num:       3,
 			},
 			Want: []int{1, 2, 0},
@@ -253,16 +253,14 @@ func TestTake(t *testing.T) {
 
 func TestTee(t *testing.T) {
 	type args struct {
-		in  func(context.Context) <-chan int
+		in  <-chan int
 		num int
 	}
 	tests := []TestCase[int, args]{
 		{
 			Name: "length = 2",
 			Args: args{
-				in: func(ctx context.Context) <-chan int {
-					return ToChan(ctx, 1, 2)
-				},
+				in:  ToChan(1, 2),
 				num: 1,
 			},
 			Want: []int{1, 2},
@@ -271,9 +269,7 @@ func TestTee(t *testing.T) {
 		// {
 		// 	Name: "canceled",
 		// 	Args: args{
-		// 		in: func(ctx context.Context) <-chan int {
-		// 			return ToChan(ctx, 1, 2)
-		// 		},
+		// 		in:  ToChan(1, 2),
 		// 		num: 1,
 		// 	},
 		// 	IsDoneByIndex: func(i int) bool { return i == 0 },
@@ -281,7 +277,7 @@ func TestTee(t *testing.T) {
 		// },
 	}
 	caller := func(ctx context.Context, a args) (<-chan int, <-chan int) {
-		return Tee(ctx, (a.in)(ctx))
+		return Tee(ctx, a.in)
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
