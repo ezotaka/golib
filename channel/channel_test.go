@@ -60,6 +60,7 @@ func TestOrDone(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
 			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
@@ -100,6 +101,7 @@ func TestToChan(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
 			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
@@ -147,6 +149,7 @@ func TestRepeat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
 			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
@@ -186,6 +189,7 @@ func TestRepeatFunc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
 			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
@@ -238,9 +242,56 @@ func TestTake(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
 			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Take() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
+}
+
+func TestTee(t *testing.T) {
+	type args struct {
+		in  func(context.Context) <-chan int
+		num int
+	}
+	tests := []TestCase[int, args]{
+		{
+			Name: "length = 2",
+			Args: args{
+				in: func(ctx context.Context) <-chan int {
+					return ToChan(ctx, 1, 2)
+				},
+				num: 1,
+			},
+			Want: []int{1, 2},
+		},
+		// TODO: test below doesn't work
+		// {
+		// 	Name: "canceled",
+		// 	Args: args{
+		// 		in: func(ctx context.Context) <-chan int {
+		// 			return ToChan(ctx, 1, 2)
+		// 		},
+		// 		num: 1,
+		// 	},
+		// 	IsDoneByIndex: func(i int) bool { return i == 0 },
+		// 	Want:          []int{1},
+		// },
+	}
+	caller := func(ctx context.Context, a args) (<-chan int, <-chan int) {
+		return Tee(ctx, (a.in)(ctx))
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			got1, got2 := GetTestedValues2(tt, caller)
+			if !reflect.DeepEqual(got1, tt.Want) {
+				t.Errorf("Take() got1 = %v, want %v", got1, tt.Want)
+			}
+			if !reflect.DeepEqual(got2, tt.Want) {
+				t.Errorf("Take() got2 = %v, want %v", got2, tt.Want)
 			}
 		})
 	}
