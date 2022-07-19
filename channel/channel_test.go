@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ezotaka/golib/chantest"
 )
 
 func TestOrDone(t *testing.T) {
@@ -30,7 +32,7 @@ func TestOrDone(t *testing.T) {
 	type args struct {
 		channel <-chan int
 	}
-	tests := []TestCase[int, args]{
+	tests := []chantest.Case[int, args]{
 		{
 			Name: "no interruption due to done",
 			Args: args{
@@ -61,7 +63,7 @@ func TestOrDone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
+			got := chantest.GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
 			}
@@ -73,7 +75,7 @@ func TestToChan(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	tests := []TestCase[int, args]{
+	tests := []chantest.Case[int, args]{
 		{
 			Name: "length=0",
 			Args: args{
@@ -102,7 +104,7 @@ func TestToChan(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
+			got := chantest.GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
 			}
@@ -114,7 +116,7 @@ func TestRepeat(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	tests := []TestCase[int, args]{
+	tests := []chantest.Case[int, args]{
 		{
 			Name: "1",
 			Args: args{
@@ -150,7 +152,7 @@ func TestRepeat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
+			got := chantest.GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
 			}
@@ -168,7 +170,7 @@ func TestRepeatFunc(t *testing.T) {
 	type args struct {
 		fn func() int
 	}
-	tests := []TestCase[int, args]{
+	tests := []chantest.Case[int, args]{
 		{
 			Name: "5 count",
 			Args: args{
@@ -190,7 +192,7 @@ func TestRepeatFunc(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
+			got := chantest.GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
 			}
@@ -203,7 +205,7 @@ func TestTake(t *testing.T) {
 		valueChan <-chan int
 		num       int
 	}
-	tests := []TestCase[int, args]{
+	tests := []chantest.Case[int, args]{
 		{
 			Name: "take 1",
 			Args: args{
@@ -243,7 +245,7 @@ func TestTake(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
+			got := chantest.GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Take() = %v, want %v", got, tt.Want)
 			}
@@ -256,7 +258,7 @@ func TestTee(t *testing.T) {
 		in  <-chan int
 		num int
 	}
-	tests := []TestCase[int, args]{
+	tests := []chantest.Case[int, args]{
 		{
 			Name: "length = 2",
 			Args: args{
@@ -282,7 +284,7 @@ func TestTee(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got1, got2 := GetTestedValues2(tt, caller)
+			got1, got2 := chantest.GetTestedValues2(tt, caller)
 			if !reflect.DeepEqual(got1, tt.Want) {
 				t.Errorf("Take() got1 = %v, want %v", got1, tt.Want)
 			}

@@ -1,4 +1,4 @@
-package channel
+package chantest
 
 import (
 	"context"
@@ -35,7 +35,7 @@ func TestGetTestedValues(t *testing.T) {
 	}
 
 	type args struct {
-		test   TestCase[int, counterArgs]
+		test   Case[int, counterArgs]
 		caller func(context.Context, counterArgs) <-chan int
 	}
 	tests := []struct {
@@ -46,7 +46,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "not done, end 3",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -60,7 +60,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "already done at first",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 10,
 					},
@@ -75,7 +75,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by index == 0",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -90,7 +90,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by index == 1",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -105,7 +105,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "not satisfied index == 5",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -120,7 +120,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by value == 1",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -135,7 +135,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by value == 2",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -151,7 +151,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "not satisfied value == 5",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -166,7 +166,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by time == 50 ms",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -181,7 +181,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by time == 250 ms",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -196,7 +196,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "not satisfied time == 500 ms",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -211,7 +211,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by index and value",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -227,7 +227,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by index before value",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -243,7 +243,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by value before index",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -259,7 +259,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by index before time",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -275,7 +275,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by time before index",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -291,7 +291,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by value before time",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -307,7 +307,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "done by time before value",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},
@@ -323,7 +323,7 @@ func TestGetTestedValues(t *testing.T) {
 		{
 			name: "all conditions",
 			args: args{
-				test: TestCase[int, counterArgs]{
+				test: Case[int, counterArgs]{
 					Args: counterArgs{
 						end: 3,
 					},

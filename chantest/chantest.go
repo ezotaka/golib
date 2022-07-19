@@ -1,4 +1,4 @@
-package channel
+package chantest
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 )
 
 // Test case for function like func(done <-chan any, [spread Args]) <-chan C
-type TestCase[C any, A any] struct {
+type Case[C any, A any] struct {
 	// Name of test case
 	Name string
 
@@ -49,7 +49,7 @@ func GetTestedValues[
 	A any,
 ](
 	// Test case for the function to be tested
-	test TestCase[C, A],
+	test Case[C, A],
 	// caller executes the function to be tested
 	caller func(
 		context.Context, // context
@@ -74,7 +74,7 @@ func GetTestedValues[
 }
 
 // Return channel which is closed when c is closed or conditions in test case are met
-func orTestCaseDone[C any, A any](ctx context.Context, cancel context.CancelFunc, t *TestCase[C, A], c <-chan C) <-chan C {
+func orTestCaseDone[C any, A any](ctx context.Context, cancel context.CancelFunc, t *Case[C, A], c <-chan C) <-chan C {
 	returnChan := make(chan C)
 
 	// * type declarations inside generic functions are not currently supported
@@ -139,7 +139,7 @@ func GetTestedValues2[
 	A any,
 ](
 	// Test case for the function to be tested
-	test TestCase[C, A],
+	test Case[C, A],
 	// caller executes the function to be tested
 	caller func(
 		context.Context, // context
