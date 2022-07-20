@@ -3,6 +3,7 @@ package channel
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 func Or[T any](channels ...<-chan T) <-chan T {
@@ -163,6 +164,38 @@ func Take[T any](
 	return takeChan
 }
 
+func Sleep[T any](
+	ctx context.Context,
+	c <-chan T,
+	t time.Duration,
+) <-chan T {
+	if t == 0 {
+		return c
+	}
+	ch := make(chan T)
+	go func() {
+		defer close(ch)
+		p := OrDone(ctx, c)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-p:
+				if !ok {
+					return
+				}
+				select {
+				case <-ctx.Done():
+				case <-time.After(t):
+					ch <- v
+				}
+			}
+		}
+	}()
+	return ch
+}
+
+// Split the channel into two channels
 func Tee[T any](
 	ctx context.Context,
 	in <-chan T,
@@ -174,6 +207,7 @@ func Tee[T any](
 		defer close(out2)
 		for val := range OrDone(ctx, in) {
 			var out1, out2 = out1, out2
+			// Writes reliably to two channels
 			for i := 0; i < 2; i++ {
 				select {
 				case out1 <- val:

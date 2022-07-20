@@ -7,26 +7,26 @@ import (
 	"time"
 )
 
-func TestOrDone(t *testing.T) {
-	// function to be tested
-	// count up every 100 msec until end
-	counter := func(end int) <-chan int {
-		valChan := make(chan int)
-		go func() {
-			defer close(valChan)
-			count := 1
-			for {
-				time.Sleep(100 * time.Microsecond)
-				valChan <- count
-				if count >= end {
-					return
-				}
-				count++
+// function to be tested
+// count up every 100 msec until end
+func counter(end int) <-chan int {
+	valChan := make(chan int)
+	go func() {
+		defer close(valChan)
+		count := 1
+		for {
+			time.Sleep(100 * time.Millisecond)
+			valChan <- count
+			if count >= end {
+				return
 			}
-		}()
-		return valChan
-	}
+			count++
+		}
+	}()
+	return valChan
+}
 
+func TestOrDone(t *testing.T) {
 	type args struct {
 		channel <-chan int
 	}
@@ -287,6 +287,112 @@ func TestTake(t *testing.T) {
 			got := GetTestedValues(tt, caller)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Take() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
+}
+
+const (
+	// If TestSleep fails, increase this value.
+	// The test will stabilize, but will take longer.
+	sleepTestScale = 5
+)
+
+func sleepTime(t float64) time.Duration {
+	return time.Duration(t*sleepTestScale) * time.Millisecond
+}
+
+func TestSleep(t *testing.T) {
+	type args struct {
+		c func(context.Context) <-chan int
+		t time.Duration
+	}
+	tests := []TestCase[int, args]{
+		{
+			Name: "no count",
+			Args: args{
+				c: func(ctx context.Context) <-chan int {
+					return ToChan(1, 2, 3)
+				},
+				t: sleepTime(100),
+			},
+			IsDoneByTime: sleepTime(5),
+			Want:         []int{},
+		},
+		{
+			Name: "sleep 1",
+			Args: args{
+				c: func(ctx context.Context) <-chan int {
+					return ToChan(1, 2, 3)
+				},
+				t: sleepTime(100),
+			},
+			IsDoneByTime: sleepTime(150),
+			Want:         []int{1},
+		},
+		{
+			Name: "sleep 2",
+			Args: args{
+				c: func(ctx context.Context) <-chan int {
+					return ToChan(1, 2, 3)
+				},
+				t: sleepTime(100),
+			},
+			IsDoneByTime: sleepTime(250),
+			Want:         []int{1, 2},
+		},
+		{
+			Name: "0 time sleep",
+			Args: args{
+				c: func(ctx context.Context) <-chan int {
+					return ToChan(1, 2, 3)
+				},
+				t: sleepTime(0),
+			},
+			// nervousness
+			IsDoneByTime: sleepTime(10),
+			Want:         []int{1, 2, 3},
+		},
+		{
+			Name: "cannot read (total sleep > deadline)",
+			Args: args{
+				c: func(ctx context.Context) <-chan int {
+					return Sleep(
+						ctx,
+						ToChan(1, 2, 3),
+						sleepTime(120))
+				},
+				t: sleepTime(100),
+			},
+			//Non-determined
+			IsDoneByTime: sleepTime(210),
+			Want:         []int{},
+		},
+		{
+			Name: "can read (total sleep < deadline)",
+			Args: args{
+				c: func(ctx context.Context) <-chan int {
+					return Sleep(
+						ctx,
+						ToChan(1, 2, 3),
+						sleepTime(120))
+				},
+				t: sleepTime(100),
+			},
+			//Non-determined
+			IsDoneByTime: sleepTime(240),
+			Want:         []int{1},
+		},
+	}
+	caller := func(ctx context.Context, a args) <-chan int {
+		return Sleep(ctx, (a.c)(ctx), a.t)
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+			got := GetTestedValues(tt, caller)
+			if !reflect.DeepEqual(got, tt.Want) {
+				t.Errorf("Sleep() = %v, want %v", got, tt.Want)
 			}
 		})
 	}
