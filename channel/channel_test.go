@@ -110,6 +110,47 @@ func TestToChan(t *testing.T) {
 	}
 }
 
+func TestToSlice(t *testing.T) {
+	type args struct {
+		ctx context.Context
+		c   <-chan int
+	}
+	tests := []TestCase[int, args]{
+		{
+			Name: "{1, 2}",
+			Args: args{
+				ctx: context.Background(),
+				c:   ToChan(1, 2),
+			},
+			Want: []int{1, 2},
+		},
+		{
+			Name: "empty channel",
+			Args: args{
+				ctx: context.Background(),
+				c:   ToChan[int](),
+			},
+			Want: []int{},
+		},
+		{
+			Name: "nil channel",
+			Args: args{
+				ctx: context.Background(),
+				c:   nil,
+			},
+			Want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			if got := ToSlice(tt.Args.ctx, tt.Args.c); !reflect.DeepEqual(got, tt.Want) {
+				t.Errorf("ToSlice() = %v, want %v", got, tt.Want)
+			}
+		})
+	}
+
+}
+
 func TestRepeat(t *testing.T) {
 	type args struct {
 		values []int

@@ -1,6 +1,9 @@
 package channel
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 func Or[T any](channels ...<-chan T) <-chan T {
 	switch len(channels) {
@@ -68,6 +71,33 @@ func ToChan[T any](values ...T) <-chan T {
 		}
 	}()
 	return ch
+}
+
+// Convert channel to slice synchronously
+// This function is blocked until ctx is done or c is closed
+func ToSlice[T any](ctx context.Context, c <-chan T) []T {
+	if c == nil {
+		return nil
+	}
+	got := []T{}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-c:
+				if !ok {
+					return
+				}
+				got = append(got, v)
+			}
+		}
+	}()
+	wg.Wait()
+	return got
 }
 
 func Repeat[T any](ctx context.Context, values ...T) <-chan T {
