@@ -6,6 +6,68 @@ import (
 	"time"
 )
 
+// Type of context key
+type ctxKey int
+
+const (
+	// Key of count to cancel channel
+	countToCancelKey ctxKey = iota
+)
+
+// Get context with cancellation by count
+func contextWithCountCancel(parent context.Context, cnt int) context.Context {
+	return context.WithValue(parent, countToCancelKey, cnt)
+}
+
+// Get count to cancel channel
+func countToCancel(ctx context.Context) (int, bool) {
+	cnt, ok := ctx.Value(countToCancelKey).(int)
+	return cnt, ok
+}
+
+// Get context with cancellation by count
+func ContextWithCountCancel(parent context.Context, cnt int) (context.Context, context.CancelFunc) {
+	return context.WithCancel(contextWithCountCancel(parent, cnt))
+}
+
+// Return channel with cancellation by context
+func ForTest[T any](ctx context.Context, c <-chan T) <-chan T {
+	ctx, cancel := context.WithCancel(ctx)
+	testChan := make(chan T)
+	go func() {
+		defer close(testChan)
+		defer cancel()
+
+		if cnt, ok := countToCancel(ctx); ok && cnt <= 0 {
+			return
+		}
+
+		count := 1
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				select {
+				case val, ok := <-c:
+					if !ok {
+						return
+					}
+					testChan <- val
+					if cnt, ok := countToCancel(ctx); ok {
+						if cnt == count {
+							return
+						}
+					}
+					count++
+				default:
+				}
+			}
+		}
+	}()
+	return testChan
+}
+
 // Test case for function like func(done <-chan any, [spread Args]) <-chan C
 type Case[C any, A any] struct {
 	// Name of test case
