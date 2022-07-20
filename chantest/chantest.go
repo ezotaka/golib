@@ -128,11 +128,18 @@ func GetTestedValues[
 	}
 
 	returnChan := caller(ctx, test.Args)
+	if nil == returnChan {
+		cancel()
+		return nil
+	}
 	got := []C{}
 	for val := range orTestCaseDone(ctx, cancel, &test, returnChan) {
 		got = append(got, val)
 	}
 	return got
+	// ? why doesn't the code below work?
+	//return ToSlice(ctx, orTestCaseDone(&ctx, &cancel, &test, returnChan))
+	//return ToSlice(context.Background(), orTestCaseDone(&ctx, &cancel, &test, returnChan))
 }
 
 // Return channel which is closed when c is closed or conditions in test case are met
