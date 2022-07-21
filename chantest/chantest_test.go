@@ -11,8 +11,7 @@ import (
 
 func TestContextWithCountCancel(t *testing.T) {
 	type args struct {
-		parent context.Context
-		cnt    int
+		cnt int
 	}
 	tests := []struct {
 		name     string
@@ -24,33 +23,21 @@ func TestContextWithCountCancel(t *testing.T) {
 		{
 			name: "cnt = 0",
 			args: args{
-				parent: context.Background(),
-				cnt:    0,
+				cnt: 0,
 			},
 			want: 0,
 		},
 		{
 			name: "cnt = 1",
 			args: args{
-				parent: context.Background(),
-				cnt:    1,
+				cnt: 1,
 			},
 			want: 1,
 		},
 		{
-			name: "nil parent",
-			args: args{
-				parent: nil,
-				cnt:    0,
-			},
-			isPanic:  true,
-			panicMsg: "cannot create context from nil parent",
-		},
-		{
 			name: "cnt = -1",
 			args: args{
-				parent: context.Background(),
-				cnt:    -1,
+				cnt: -1,
 			},
 			isPanic:  true,
 			panicMsg: "cnt must be zero or positive",
@@ -67,7 +54,7 @@ func TestContextWithCountCancel(t *testing.T) {
 					t.Errorf("ContextWithCountCancel() panic '%v', want '%v'", r, tt.panicMsg)
 				}
 			}()
-			got, _ := ContextWithCountCancel(tt.args.parent, tt.args.cnt)
+			got := ContextWithCountCancel(tt.args.cnt)
 			if cnt, ok := countToCancel(got); !ok || !reflect.DeepEqual(cnt, tt.want) {
 				t.Errorf("ContextWithCountCancel() got = %v, want %v", cnt, tt.want)
 			}
@@ -77,7 +64,7 @@ func TestContextWithCountCancel(t *testing.T) {
 
 func TestForTest(t *testing.T) {
 	cancelByCount := func(cnt int) context.Context {
-		ctx, _ := ContextWithCountCancel(context.Background(), cnt)
+		ctx := ContextWithCountCancel(cnt)
 		return ctx
 	}
 	cancelByTimeout := func(t time.Duration) context.Context {

@@ -14,17 +14,6 @@ const (
 	countToCancelKey ctxKey = iota
 )
 
-// Get context with cancellation by count
-func contextWithCountCancel(parent context.Context, cnt int) context.Context {
-	if parent == nil {
-		panic("cannot create context from nil parent")
-	}
-	if cnt < 0 {
-		panic("cnt must be zero or positive")
-	}
-	return context.WithValue(parent, countToCancelKey, cnt)
-}
-
 // Get count to cancel channel
 func countToCancel(ctx context.Context) (int, bool) {
 	cnt, ok := ctx.Value(countToCancelKey).(int)
@@ -34,8 +23,11 @@ func countToCancel(ctx context.Context) (int, bool) {
 // Get context with cancellation by count
 //
 // It panics if parent is nil or  cnt is negative
-func ContextWithCountCancel(parent context.Context, cnt int) (context.Context, context.CancelFunc) {
-	return context.WithCancel(contextWithCountCancel(parent, cnt))
+func ContextWithCountCancel(cnt int) context.Context {
+	if cnt < 0 {
+		panic("cnt must be zero or positive")
+	}
+	return context.WithValue(context.Background(), countToCancelKey, cnt)
 }
 
 // Return channel with cancellation by context
