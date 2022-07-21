@@ -16,6 +16,12 @@ const (
 
 // Get context with cancellation by count
 func contextWithCountCancel(parent context.Context, cnt int) context.Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	if cnt < 0 {
+		panic("cnt must be zero or positive")
+	}
 	return context.WithValue(parent, countToCancelKey, cnt)
 }
 
@@ -26,19 +32,27 @@ func countToCancel(ctx context.Context) (int, bool) {
 }
 
 // Get context with cancellation by count
+//
+// It panics if parent is nil or  cnt is negative
 func ContextWithCountCancel(parent context.Context, cnt int) (context.Context, context.CancelFunc) {
 	return context.WithCancel(contextWithCountCancel(parent, cnt))
 }
 
 // Return channel with cancellation by context
 func ForTest[T any](ctx context.Context, c <-chan T) <-chan T {
+	if ctx == nil {
+		panic("ctx must not be nil")
+	}
+	if c == nil {
+		return nil
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	testChan := make(chan T)
 	go func() {
 		defer close(testChan)
 		defer cancel()
 
-		if cnt, ok := countToCancel(ctx); ok && cnt <= 0 {
+		if cnt, ok := countToCancel(ctx); ok && cnt == 0 {
 			return
 		}
 

@@ -61,6 +61,7 @@ func TestOrDone(t *testing.T) {
 		return OrDone(ctx, a.channel)
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			got := chantest.GetTestedValues(tt, caller)
@@ -102,6 +103,7 @@ func TestToChan(t *testing.T) {
 		return ToChan(a.values...)
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			got := chantest.GetTestedValues(tt, caller)
@@ -144,6 +146,7 @@ func TestToSlice(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			if got := ToSlice(tt.Args.ctx, tt.Args.c); !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("ToSlice() = %v, want %v", got, tt.Want)
@@ -191,6 +194,7 @@ func TestRepeat(t *testing.T) {
 		return Take(ctx, Repeat(ctx, a.values...), 5)
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			got := chantest.GetTestedValues(tt, caller)
@@ -231,6 +235,7 @@ func TestRepeatFunc(t *testing.T) {
 		return Take(ctx, RepeatFunc(ctx, a.fn), 5)
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			got := chantest.GetTestedValues(tt, caller)
@@ -284,6 +289,7 @@ func TestTake(t *testing.T) {
 		return Take(ctx, a.valueChan, a.num)
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			got := chantest.GetTestedValues(tt, caller)
@@ -390,6 +396,7 @@ func TestSleep(t *testing.T) {
 		return Sleep(ctx, (a.c)(ctx), a.t)
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			got := chantest.GetTestedValues(tt, caller)
@@ -429,6 +436,7 @@ func TestTee(t *testing.T) {
 		return Tee(ctx, a.in)
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			got1, got2 := chantest.GetTestedValues2(tt, caller)

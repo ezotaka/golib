@@ -5,7 +5,170 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ezotaka/golib/channel"
 )
+
+func TestContextWithCountCancel(t *testing.T) {
+	type args struct {
+		parent context.Context
+		cnt    int
+	}
+	tests := []struct {
+		name     string
+		args     args
+		want     int
+		isPanic  bool
+		panicMsg string
+	}{
+		{
+			name: "cnt = 0",
+			args: args{
+				parent: context.Background(),
+				cnt:    0,
+			},
+			want: 0,
+		},
+		{
+			name: "cnt = 1",
+			args: args{
+				parent: context.Background(),
+				cnt:    1,
+			},
+			want: 1,
+		},
+		{
+			name: "nil parent",
+			args: args{
+				parent: nil,
+				cnt:    0,
+			},
+			isPanic:  true,
+			panicMsg: "cannot create context from nil parent",
+		},
+		{
+			name: "cnt = -1",
+			args: args{
+				parent: context.Background(),
+				cnt:    -1,
+			},
+			isPanic:  true,
+			panicMsg: "cnt must be zero or positive",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			defer func() {
+				if r := recover(); tt.isPanic && r == nil {
+					t.Errorf("ContextWithCountCancel() doesn't panic, want '%v'", tt.panicMsg)
+				} else if tt.isPanic && r != tt.panicMsg {
+					t.Errorf("ContextWithCountCancel() panic '%v', want '%v'", r, tt.panicMsg)
+				}
+			}()
+			got, _ := ContextWithCountCancel(tt.args.parent, tt.args.cnt)
+			if cnt, ok := countToCancel(got); !ok || !reflect.DeepEqual(cnt, tt.want) {
+				t.Errorf("ContextWithCountCancel() got = %v, want %v", cnt, tt.want)
+			}
+		})
+	}
+}
+
+func TestForTest(t *testing.T) {
+	cancelByCount := func(cnt int) context.Context {
+		ctx, _ := ContextWithCountCancel(context.Background(), cnt)
+		return ctx
+	}
+	type args struct {
+		ctx context.Context
+		c   <-chan int
+	}
+	tests := []struct {
+		name     string
+		args     args
+		want     []int
+		isPanic  bool
+		panicMsg string
+	}{
+		{
+			name: "channel closed normally",
+			args: args{
+				ctx: context.Background(),
+				c:   channel.ToChan(1, 2),
+			},
+			want: []int{1, 2},
+		},
+		{
+			name: "channel closed by context with count 0",
+			args: args{
+				ctx: cancelByCount(0),
+				c:   channel.ToChan(1, 2),
+			},
+			want: []int{},
+		},
+		{
+			name: "channel closed by context with count 1",
+			args: args{
+				ctx: cancelByCount(1),
+				c:   channel.ToChan(1, 2),
+			},
+			want: []int{1},
+		},
+		{
+			name: "channel closed by context with count 2",
+			args: args{
+				ctx: cancelByCount(2),
+				c:   channel.ToChan(1, 2),
+			},
+			want: []int{1, 2},
+		},
+		{
+			name: "channel closed by context with count 3",
+			args: args{
+				ctx: cancelByCount(3),
+				c:   channel.ToChan(1, 2),
+			},
+			want: []int{1, 2},
+		},
+		{
+			name: "nil context",
+			args: args{
+				ctx: nil,
+			},
+			isPanic:  true,
+			panicMsg: "ctx must not be nil",
+		},
+		{
+			name: "nil channel",
+			args: args{
+				ctx: context.Background(),
+				c:   nil,
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			defer func() {
+				if r := recover(); tt.isPanic && r == nil {
+					t.Errorf("ForTest() doesn't panic, want '%v'", tt.panicMsg)
+				} else if tt.isPanic && r != tt.panicMsg {
+					t.Errorf("ForTest() panic '%v', want '%v'", r, tt.panicMsg)
+				}
+			}()
+
+			got := ForTest(tt.args.ctx, tt.args.c)
+			gotSlice := channel.ToSlice(context.Background(), got)
+			if !reflect.DeepEqual(gotSlice, tt.want) {
+				t.Errorf("ForTest() = %v, want %v", gotSlice, tt.want)
+			}
+		})
+	}
+}
 
 func TestGetTestedValues(t *testing.T) {
 	// function to be tested
@@ -340,6 +503,7 @@ func TestGetTestedValues(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if got := GetTestedValues(tt.args.test, tt.args.caller); !reflect.DeepEqual(got, tt.want) {
