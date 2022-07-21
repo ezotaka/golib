@@ -80,6 +80,18 @@ func TestForTest(t *testing.T) {
 		ctx, _ := ContextWithCountCancel(context.Background(), cnt)
 		return ctx
 	}
+	cancelByTimeout := func(t time.Duration) context.Context {
+		//ctx, _ := context.WithTimeout(context.Background(), t)
+		//* above code is warned like below
+		// the cancel function returned by context.WithTimeout should be called, not discarded, to avoid a context leak
+
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			time.Sleep(t)
+			cancel()
+		}()
+		return ctx
+	}
 	type args struct {
 		ctx context.Context
 		c   <-chan int
@@ -128,6 +140,30 @@ func TestForTest(t *testing.T) {
 			args: args{
 				ctx: cancelByCount(3),
 				c:   channel.ToChan(1, 2),
+			},
+			want: []int{1, 2},
+		},
+		{
+			name: "channel closed by timeout 0",
+			args: args{
+				ctx: cancelByTimeout(50 * time.Millisecond),
+				c:   channel.Sleep(context.Background(), channel.ToChan(1, 2), 100*time.Millisecond),
+			},
+			want: []int{},
+		},
+		{
+			name: "channel closed by timeout 1",
+			args: args{
+				ctx: cancelByTimeout(150 * time.Millisecond),
+				c:   channel.Sleep(context.Background(), channel.ToChan(1, 2), 100*time.Millisecond),
+			},
+			want: []int{1},
+		},
+		{
+			name: "channel closed by timeout 2",
+			args: args{
+				ctx: cancelByTimeout(250 * time.Millisecond),
+				c:   channel.Sleep(context.Background(), channel.ToChan(1, 2), 100*time.Millisecond),
 			},
 			want: []int{1, 2},
 		},
