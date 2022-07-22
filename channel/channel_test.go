@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ezotaka/golib/chantest"
+	"github.com/ezotaka/golib/conv"
 )
 
 // function to be tested
@@ -70,90 +71,6 @@ func TestOrDone(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestToChan(t *testing.T) {
-	type args struct {
-		values []int
-	}
-	tests := []chantest.Case[int, args]{
-		{
-			Name: "length=0",
-			Args: args{
-				values: []int{},
-			},
-			Want: []int{},
-		},
-		{
-			Name: "length=1",
-			Args: args{
-				values: []int{1},
-			},
-			Want: []int{1},
-		},
-		{
-			Name: "length=2",
-			Args: args{
-				values: []int{1, 2},
-			},
-			Want: []int{1, 2},
-		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return ToChan(a.values...)
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.Name, func(t *testing.T) {
-			t.Parallel()
-			got := chantest.GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
-			}
-		})
-	}
-}
-
-func TestToSlice(t *testing.T) {
-	type args struct {
-		ctx context.Context
-		c   <-chan int
-	}
-	tests := []chantest.Case[int, args]{
-		{
-			Name: "{1, 2}",
-			Args: args{
-				ctx: context.Background(),
-				c:   ToChan(1, 2),
-			},
-			Want: []int{1, 2},
-		},
-		{
-			Name: "empty channel",
-			Args: args{
-				ctx: context.Background(),
-				c:   ToChan[int](),
-			},
-			Want: []int{},
-		},
-		{
-			Name: "nil channel",
-			Args: args{
-				ctx: context.Background(),
-				c:   nil,
-			},
-			Want: nil,
-		},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.Name, func(t *testing.T) {
-			if got := ToSlice(tt.Args.ctx, tt.Args.c); !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("ToSlice() = %v, want %v", got, tt.Want)
-			}
-		})
-	}
-
 }
 
 func TestRepeat(t *testing.T) {
@@ -255,7 +172,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 1",
 			Args: args{
-				valueChan: ToChan(1, 2),
+				valueChan: conv.ToChan(1, 2),
 				num:       1,
 			},
 			Want: []int{1},
@@ -263,7 +180,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 2",
 			Args: args{
-				valueChan: ToChan(1, 2),
+				valueChan: conv.ToChan(1, 2),
 				num:       2,
 			},
 			Want: []int{1, 2},
@@ -271,7 +188,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "try to take closed",
 			Args: args{
-				valueChan: ToChan(1, 2),
+				valueChan: conv.ToChan(1, 2),
 				num:       3,
 			},
 			Want: []int{1, 2, 0},
@@ -320,7 +237,7 @@ func TestSleep(t *testing.T) {
 			Name: "no count",
 			Args: args{
 				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
+					return conv.ToChan(1, 2, 3)
 				},
 				t: sleepTime(100),
 			},
@@ -331,7 +248,7 @@ func TestSleep(t *testing.T) {
 			Name: "sleep 1",
 			Args: args{
 				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
+					return conv.ToChan(1, 2, 3)
 				},
 				t: sleepTime(100),
 			},
@@ -342,7 +259,7 @@ func TestSleep(t *testing.T) {
 			Name: "sleep 2",
 			Args: args{
 				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
+					return conv.ToChan(1, 2, 3)
 				},
 				t: sleepTime(100),
 			},
@@ -353,7 +270,7 @@ func TestSleep(t *testing.T) {
 			Name: "0 time sleep",
 			Args: args{
 				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
+					return conv.ToChan(1, 2, 3)
 				},
 				t: sleepTime(0),
 			},
@@ -367,7 +284,7 @@ func TestSleep(t *testing.T) {
 				c: func(ctx context.Context) <-chan int {
 					return Sleep(
 						ctx,
-						ToChan(1, 2, 3),
+						conv.ToChan(1, 2, 3),
 						sleepTime(120))
 				},
 				t: sleepTime(100),
@@ -382,7 +299,7 @@ func TestSleep(t *testing.T) {
 				c: func(ctx context.Context) <-chan int {
 					return Sleep(
 						ctx,
-						ToChan(1, 2, 3),
+						conv.ToChan(1, 2, 3),
 						sleepTime(120))
 				},
 				t: sleepTime(100),
@@ -416,7 +333,7 @@ func TestTee(t *testing.T) {
 		{
 			Name: "length = 2",
 			Args: args{
-				in:  ToChan(1, 2),
+				in:  conv.ToChan(1, 2),
 				num: 1,
 			},
 			Want: []int{1, 2},

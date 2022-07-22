@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ezotaka/golib/channel"
+	"github.com/ezotaka/golib/conv"
 )
 
 func TestContextWithCountCancel(t *testing.T) {
@@ -94,7 +95,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed normally",
 			args: args{
 				ctx: context.Background(),
-				c:   channel.ToChan(1, 2),
+				c:   conv.ToChan(1, 2),
 			},
 			want: []int{1, 2},
 		},
@@ -102,7 +103,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed by context with count 0",
 			args: args{
 				ctx: cancelByCount(0),
-				c:   channel.ToChan(1, 2),
+				c:   conv.ToChan(1, 2),
 			},
 			want: []int{},
 		},
@@ -110,7 +111,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed by context with count 1",
 			args: args{
 				ctx: cancelByCount(1),
-				c:   channel.ToChan(1, 2),
+				c:   conv.ToChan(1, 2),
 			},
 			want: []int{1},
 		},
@@ -118,7 +119,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed by context with count 2",
 			args: args{
 				ctx: cancelByCount(2),
-				c:   channel.ToChan(1, 2),
+				c:   conv.ToChan(1, 2),
 			},
 			want: []int{1, 2},
 		},
@@ -126,7 +127,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed by context with count 3",
 			args: args{
 				ctx: cancelByCount(3),
-				c:   channel.ToChan(1, 2),
+				c:   conv.ToChan(1, 2),
 			},
 			want: []int{1, 2},
 		},
@@ -134,7 +135,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed by timeout 0",
 			args: args{
 				ctx: cancelByTimeout(50 * time.Millisecond),
-				c:   channel.Sleep(context.Background(), channel.ToChan(1, 2), 100*time.Millisecond),
+				c:   channel.Sleep(context.Background(), conv.ToChan(1, 2), 100*time.Millisecond),
 			},
 			want: []int{},
 		},
@@ -142,7 +143,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed by timeout 1",
 			args: args{
 				ctx: cancelByTimeout(150 * time.Millisecond),
-				c:   channel.Sleep(context.Background(), channel.ToChan(1, 2), 100*time.Millisecond),
+				c:   channel.Sleep(context.Background(), conv.ToChan(1, 2), 100*time.Millisecond),
 			},
 			want: []int{1},
 		},
@@ -150,7 +151,7 @@ func TestForTest(t *testing.T) {
 			name: "channel closed by timeout 2",
 			args: args{
 				ctx: cancelByTimeout(250 * time.Millisecond),
-				c:   channel.Sleep(context.Background(), channel.ToChan(1, 2), 100*time.Millisecond),
+				c:   channel.Sleep(context.Background(), conv.ToChan(1, 2), 100*time.Millisecond),
 			},
 			want: []int{1, 2},
 		},
@@ -185,7 +186,7 @@ func TestForTest(t *testing.T) {
 			}()
 
 			got := ForTest(tt.args.ctx, tt.args.c)
-			gotSlice := channel.ToSlice(context.Background(), got)
+			gotSlice := conv.ToSlice(context.Background(), got)
 			if !reflect.DeepEqual(gotSlice, tt.want) {
 				t.Errorf("ForTest() = %v, want %v", gotSlice, tt.want)
 			}
