@@ -5,9 +5,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/ezotaka/golib/channel"
-	"github.com/ezotaka/golib/conv"
 )
 
 func TestContextWithCountCancel(t *testing.T) {
@@ -63,26 +60,31 @@ func TestContextWithCountCancel(t *testing.T) {
 	}
 }
 
-func TestForTest(t *testing.T) {
-	cancelByCount := func(cnt int) context.Context {
-		ctx := ContextWithCountCancel(cnt)
-		return ctx
-	}
-	cancelByTimeout := func(t time.Duration) context.Context {
-		//ctx, _ := context.WithTimeout(context.Background(), t)
-		//* above code is warned like below
-		// the cancel function returned by context.WithTimeout should be called, not discarded, to avoid a context leak
-
-		ctx, cancel := context.WithCancel(context.Background())
+func TestRun(t *testing.T) {
+	// count up every 100 msec until end
+	counter := func(end int) <-chan int {
+		valChan := make(chan int)
 		go func() {
-			time.Sleep(t)
-			cancel()
+			defer close(valChan)
+			count := 1
+			for {
+				time.Sleep(100 * time.Millisecond)
+				valChan <- count
+				if count >= end {
+					return
+				}
+				count++
+			}
 		}()
-		return ctx
+		return valChan
+	}
+	counterCaller := func(ctx context.Context, end int) <-chan int {
+		return counter(end)
 	}
 	type args struct {
-		ctx context.Context
-		c   <-chan int
+		ctx    context.Context
+		fn     func(context.Context, int) <-chan int
+		fnArgs int
 	}
 	tests := []struct {
 		name     string
@@ -94,82 +96,92 @@ func TestForTest(t *testing.T) {
 		{
 			name: "channel closed normally",
 			args: args{
-				ctx: context.Background(),
-				c:   conv.ToChan(1, 2),
+				ctx:    context.Background(),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{1, 2},
 		},
 		{
 			name: "channel closed by context with count 0",
 			args: args{
-				ctx: cancelByCount(0),
-				c:   conv.ToChan(1, 2),
+				ctx:    ContextWithCountCancel(0),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{},
 		},
 		{
 			name: "channel closed by context with count 1",
 			args: args{
-				ctx: cancelByCount(1),
-				c:   conv.ToChan(1, 2),
+				ctx:    ContextWithCountCancel(1),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{1},
 		},
 		{
 			name: "channel closed by context with count 2",
 			args: args{
-				ctx: cancelByCount(2),
-				c:   conv.ToChan(1, 2),
+				ctx:    ContextWithCountCancel(2),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{1, 2},
 		},
 		{
 			name: "channel closed by context with count 3",
 			args: args{
-				ctx: cancelByCount(3),
-				c:   conv.ToChan(1, 2),
+				ctx:    ContextWithCountCancel(3),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{1, 2},
 		},
 		{
 			name: "channel closed by timeout 0",
 			args: args{
-				ctx: cancelByTimeout(50 * time.Millisecond),
-				c:   channel.Sleep(context.Background(), conv.ToChan(1, 2), 100*time.Millisecond),
+				ctx:    ContextWithTimeout(50 * time.Millisecond),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{},
 		},
 		{
 			name: "channel closed by timeout 1",
 			args: args{
-				ctx: cancelByTimeout(150 * time.Millisecond),
-				c:   channel.Sleep(context.Background(), conv.ToChan(1, 2), 100*time.Millisecond),
+				ctx:    ContextWithTimeout(150 * time.Millisecond),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{1},
 		},
 		{
 			name: "channel closed by timeout 2",
 			args: args{
-				ctx: cancelByTimeout(250 * time.Millisecond),
-				c:   channel.Sleep(context.Background(), conv.ToChan(1, 2), 100*time.Millisecond),
+				ctx:    ContextWithTimeout(250 * time.Millisecond),
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
 			want: []int{1, 2},
 		},
 		{
-			name: "nil context",
+			name: "nil context is treated as context.Background()",
 			args: args{
-				ctx: nil,
+				ctx:    nil,
+				fn:     counterCaller,
+				fnArgs: 2,
 			},
-			isPanic:  true,
-			panicMsg: "ctx must not be nil",
+			want: []int{1, 2},
 		},
 		{
-			name: "nil channel",
+			name: "nil fn causes panic",
 			args: args{
 				ctx: context.Background(),
-				c:   nil,
+				fn:  nil,
 			},
-			want: nil,
+			isPanic:  true,
+			panicMsg: "fn must not be nil",
 		},
 	}
 	for _, tt := range tests {
@@ -185,353 +197,9 @@ func TestForTest(t *testing.T) {
 				}
 			}()
 
-			got := ForTest(tt.args.ctx, tt.args.c)
-			gotSlice := conv.ToSlice(context.Background(), got)
-			if !reflect.DeepEqual(gotSlice, tt.want) {
-				t.Errorf("ForTest() = %v, want %v", gotSlice, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetTestedValues(t *testing.T) {
-	// function to be tested
-	// count up every 100 msec until end or done
-	counter := func(ctx context.Context, end int) <-chan int {
-		valChan := make(chan int)
-		go func() {
-			defer close(valChan)
-			count := 1
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(100 * time.Millisecond):
-					valChan <- count
-					if count >= end {
-						return
-					}
-					count++
-				}
-			}
-		}()
-		return valChan
-	}
-	type counterArgs struct {
-		end int
-	}
-
-	type args struct {
-		test   Case[int, counterArgs]
-		caller func(context.Context, counterArgs) <-chan int
-	}
-	tests := []struct {
-		name string
-		args args
-		want []int
-	}{
-		{
-			name: "not done, end 3",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2, 3},
-		},
-		{
-			name: "already done at first",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 10,
-					},
-					IsDoneAtFirst: true,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{},
-		},
-		{
-			name: "done by index == 0",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 0 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "done by index == 1",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 1 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2},
-		},
-		{
-			name: "not satisfied index == 5",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 5 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2, 3},
-		},
-		{
-			name: "done by value == 1",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByValue: func(v int) bool { return v == 1 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "done by value == 2",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByValue: func(v int) bool { return v == 2 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2},
-		},
-
-		{
-			name: "not satisfied value == 5",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByValue: func(v int) bool { return v == 5 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2, 3},
-		},
-		{
-			name: "done by time == 50 ms",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByTime: 50 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{},
-		},
-		{
-			name: "done by time == 250 ms",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByTime: 250 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2},
-		},
-		{
-			name: "not satisfied time == 500 ms",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByTime: 500 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2, 3},
-		},
-		{
-			name: "done by index and value",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 1 },
-					IsDoneByValue: func(v int) bool { return v == 2 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1, 2},
-		},
-		{
-			name: "done by index before value",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 0 },
-					IsDoneByValue: func(v int) bool { return v == 2 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "done by value before index",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 2 },
-					IsDoneByValue: func(v int) bool { return v == 1 },
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "done by index before time",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 0 },
-					IsDoneByTime:  250 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "done by time before index",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByIndex: func(i int) bool { return i == 2 },
-					IsDoneByTime:  150 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "done by value before time",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByValue: func(v int) bool { return v == 1 },
-					IsDoneByTime:  250 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "done by time before value",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneByValue: func(v int) bool { return v == 2 },
-					IsDoneByTime:  150 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{1},
-		},
-		{
-			name: "all conditions",
-			args: args{
-				test: Case[int, counterArgs]{
-					Args: counterArgs{
-						end: 3,
-					},
-					IsDoneAtFirst: true,
-					IsDoneByIndex: func(i int) bool { return i == 2 },
-					IsDoneByValue: func(v int) bool { return v == 2 },
-					IsDoneByTime:  250 * time.Millisecond,
-				},
-				caller: func(ctx context.Context, a counterArgs) <-chan int {
-					return counter(ctx, a.end)
-				},
-			},
-			want: []int{},
-		},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := GetTestedValues(tt.args.test, tt.args.caller); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("DoTest() = %v, want %v", got, tt.want)
+			got := Run(tt.args.ctx, tt.args.fn, tt.args.fnArgs)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ForTest() = %v, want %v", got, tt.want)
 			}
 		})
 	}

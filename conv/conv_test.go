@@ -4,47 +4,45 @@ import (
 	"context"
 	"reflect"
 	"testing"
-
-	"github.com/ezotaka/golib/chantest"
 )
 
 func TestToChan(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	tests := []chantest.Case[int, args]{
+	tests := []struct {
+		name string
+		args args
+		want []int
+	}{
 		{
-			Name: "length=0",
-			Args: args{
+			name: "length=0",
+			args: args{
 				values: []int{},
 			},
-			Want: []int{},
+			want: []int{},
 		},
 		{
-			Name: "length=1",
-			Args: args{
+			name: "length=1",
+			args: args{
 				values: []int{1},
 			},
-			Want: []int{1},
+			want: []int{1},
 		},
 		{
-			Name: "length=2",
-			Args: args{
+			name: "length=2",
+			args: args{
 				values: []int{1, 2},
 			},
-			Want: []int{1, 2},
+			want: []int{1, 2},
 		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return ToChan(a.values...)
 	}
 	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.Name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
+			if got := ToSlice(context.Background(), ToChan(tt.args.values...)); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ToChan() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -52,40 +50,41 @@ func TestToChan(t *testing.T) {
 
 func TestToSlice(t *testing.T) {
 	type args struct {
-		ctx context.Context
-		c   <-chan int
+		c <-chan int
 	}
-	tests := []chantest.Case[int, args]{
+	tests := []struct {
+		name string
+		args args
+		want []int
+	}{
 		{
-			Name: "{1, 2}",
-			Args: args{
-				ctx: context.Background(),
-				c:   ToChan(1, 2),
+			name: "{1, 2}",
+			args: args{
+				c: ToChan(1, 2),
 			},
-			Want: []int{1, 2},
+			want: []int{1, 2},
 		},
 		{
-			Name: "empty channel",
-			Args: args{
-				ctx: context.Background(),
-				c:   ToChan[int](),
+			name: "empty channel",
+			args: args{
+				c: ToChan[int](),
 			},
-			Want: []int{},
+			want: []int{},
 		},
 		{
-			Name: "nil channel",
-			Args: args{
-				ctx: context.Background(),
-				c:   nil,
+			name: "nil channel",
+			args: args{
+				c: nil,
 			},
-			Want: nil,
+			want: nil,
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.Name, func(t *testing.T) {
-			if got := ToSlice(tt.Args.ctx, tt.Args.c); !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("ToSlice() = %v, want %v", got, tt.Want)
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := ToSlice(context.Background(), tt.args.c); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ToChan() = %v, want %v", got, tt.want)
 			}
 		})
 	}

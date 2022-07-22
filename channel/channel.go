@@ -89,6 +89,7 @@ func RepeatFunc[T any](
 	go func() {
 		defer close(valueChan)
 		if fn == nil {
+			// TODO: it must panic
 			return
 		}
 		for {
