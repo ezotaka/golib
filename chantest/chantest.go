@@ -44,24 +44,42 @@ func ContextWithTimeout(t time.Duration) context.Context {
 	return ctx
 }
 
-// TODO: args must be replaced with Case[C, A]
+// TODO: Add type parameter R which is type of return of function to be tested
+// Test case for function like func(context.Context, [spread A]) <-chan C
+type Case[C any, A any] struct {
+	// Name of test case
+	Name string
+
+	// Args passed to the target method
+	Args A
+
+	// Context to cancel the channel which is return of function to be tested
+	Context context.Context
+
+	// Invoker the method to be tested
+	Invoker func(context.Context, A) <-chan C
+
+	// Expected channel values
+	Want []C
+}
+
 // TODO: catch panic and return error
-func Run[C any, A any](
-	ctx context.Context,
-	fn func(context.Context, A) <-chan C,
-	args A,
-) []C {
-	if fn == nil {
-		panic("fn must not be nil")
+func Run[C any, A any](tc Case[C, A]) []C {
+	if tc.Invoker == nil {
+		panic("c.Invoker must not be nil")
 	}
+	ctx := tc.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	c := fn(ctx, args)
-	testChan := make(chan C)
+
+	// invoke the method to be tested
+	returnedChan := tc.Invoker(ctx, tc.Args)
+
+	endedChan := make(chan C)
 	go func() {
-		defer close(testChan)
+		defer close(endedChan)
 		defer cancel()
 
 		if cnt, ok := countToCancel(ctx); ok && cnt == 0 {
@@ -75,11 +93,11 @@ func Run[C any, A any](
 				return
 			default:
 				select {
-				case val, ok := <-c:
+				case val, ok := <-returnedChan:
 					if !ok {
 						return
 					}
-					testChan <- val
+					endedChan <- val
 					if cnt, ok := countToCancel(ctx); ok {
 						if cnt == count {
 							return
@@ -91,21 +109,5 @@ func Run[C any, A any](
 			}
 		}
 	}()
-	return conv.ToSlice(context.Background(), testChan)
-}
-
-// TODO: Add type parameter W which is type of return of function to be tested
-// Test case for function like func(done <-chan any, [spread Args]) <-chan C
-type Case[C any, A any] struct {
-	// Name of test case
-	Name string
-
-	// Args passed to the target method
-	Args A
-
-	// Context to cancel the channel which is return of function to be tested
-	Context context.Context
-
-	// Expected channel values
-	Want []C
+	return conv.ToSlice(context.Background(), endedChan)
 }

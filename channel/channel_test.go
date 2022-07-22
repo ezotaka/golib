@@ -33,13 +33,17 @@ func TestOrDone(t *testing.T) {
 	type args struct {
 		channel <-chan int
 	}
+	invoker := func(ctx context.Context, a args) <-chan int {
+		return OrDone(ctx, a.channel)
+	}
 	tests := []chantest.Case[int, args]{
 		{
 			Name: "no interruption due to done",
 			Args: args{
 				channel: counter(3),
 			},
-			Want: []int{1, 2, 3},
+			Invoker: invoker,
+			Want:    []int{1, 2, 3},
 		},
 		{
 			Name: "interruption due to done",
@@ -47,6 +51,7 @@ func TestOrDone(t *testing.T) {
 				channel: counter(3),
 			},
 			Context: chantest.ContextWithCountCancel(2),
+			Invoker: invoker,
 			Want:    []int{1, 2},
 		},
 		{
@@ -55,17 +60,15 @@ func TestOrDone(t *testing.T) {
 				channel: nil,
 			},
 			Context: chantest.ContextWithTimeout(100 * time.Millisecond),
+			Invoker: invoker,
 			Want:    []int{},
 		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return OrDone(ctx, a.channel)
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt.Context, caller, tt.Args)
+			got := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
 			}
@@ -77,6 +80,9 @@ func TestRepeat(t *testing.T) {
 	type args struct {
 		values []int
 	}
+	invoker := func(ctx context.Context, a args) <-chan int {
+		return Repeat(ctx, a.values...)
+	}
 	tests := []chantest.Case[int, args]{
 		{
 			Name: "1",
@@ -84,6 +90,7 @@ func TestRepeat(t *testing.T) {
 				values: []int{1},
 			},
 			Context: chantest.ContextWithCountCancel(5),
+			Invoker: invoker,
 			Want:    []int{1, 1, 1, 1, 1},
 		},
 		{
@@ -92,6 +99,7 @@ func TestRepeat(t *testing.T) {
 				values: []int{1, 2},
 			},
 			Context: chantest.ContextWithCountCancel(5),
+			Invoker: invoker,
 			Want:    []int{1, 2, 1, 2, 1},
 		},
 		{
@@ -100,6 +108,7 @@ func TestRepeat(t *testing.T) {
 				values: []int{1, 2, 3, 4, 5, 6},
 			},
 			Context: chantest.ContextWithCountCancel(5),
+			Invoker: invoker,
 			Want:    []int{1, 2, 3, 4, 5},
 		},
 		{
@@ -108,17 +117,15 @@ func TestRepeat(t *testing.T) {
 				values: []int{},
 			},
 			Context: chantest.ContextWithCountCancel(5),
+			Invoker: invoker,
 			Want:    []int{},
 		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return Repeat(ctx, a.values...)
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt.Context, caller, tt.Args)
+			got := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
 			}
@@ -135,6 +142,9 @@ func TestRepeatFunc(t *testing.T) {
 	type args struct {
 		fn func() int
 	}
+	invoker := func(ctx context.Context, a args) <-chan int {
+		return RepeatFunc(ctx, a.fn)
+	}
 	tests := []chantest.Case[int, args]{
 		{
 			Name: "5 count",
@@ -142,6 +152,7 @@ func TestRepeatFunc(t *testing.T) {
 				fn: increment,
 			},
 			Context: chantest.ContextWithCountCancel(5),
+			Invoker: invoker,
 			Want:    []int{1, 2, 3, 4, 5},
 		},
 		{
@@ -150,17 +161,15 @@ func TestRepeatFunc(t *testing.T) {
 				fn: nil,
 			},
 			Context: chantest.ContextWithCountCancel(5),
+			Invoker: invoker,
 			Want:    []int{},
 		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return RepeatFunc(ctx, a.fn)
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt.Context, caller, tt.Args)
+			got := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
 			}
@@ -173,6 +182,10 @@ func TestTake(t *testing.T) {
 		valueChan <-chan int
 		num       int
 	}
+	invoker := func(ctx context.Context, a args) <-chan int {
+		return Take(ctx, a.valueChan, a.num)
+	}
+
 	tests := []chantest.Case[int, args]{
 		{
 			Name: "take 1",
@@ -180,7 +193,8 @@ func TestTake(t *testing.T) {
 				valueChan: conv.ToChan(1, 2),
 				num:       1,
 			},
-			Want: []int{1},
+			Invoker: invoker,
+			Want:    []int{1},
 		},
 		{
 			Name: "take 2",
@@ -188,7 +202,8 @@ func TestTake(t *testing.T) {
 				valueChan: conv.ToChan(1, 2),
 				num:       2,
 			},
-			Want: []int{1, 2},
+			Invoker: invoker,
+			Want:    []int{1, 2},
 		},
 		{
 			Name: "try to take closed",
@@ -196,7 +211,18 @@ func TestTake(t *testing.T) {
 				valueChan: conv.ToChan(1, 2),
 				num:       3,
 			},
-			Want: []int{1, 2, 0},
+			Invoker: invoker,
+			Want:    []int{1, 2, 0},
+		},
+		{
+			Name: "try to take 3 but canceled at 2",
+			Args: args{
+				valueChan: conv.ToChan(1, 2, 3, 4),
+				num:       3,
+			},
+			Context: chantest.ContextWithCountCancel(2),
+			Invoker: invoker,
+			Want:    []int{1, 2},
 		},
 		{
 			Name: "nil channel",
@@ -204,17 +230,15 @@ func TestTake(t *testing.T) {
 				valueChan: nil,
 				num:       3,
 			},
-			Want: []int{},
+			Invoker: invoker,
+			Want:    []int{},
 		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return Take(ctx, a.valueChan, a.num)
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt.Context, caller, tt.Args)
+			got := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Take() = %v, want %v", got, tt.Want)
 			}
@@ -237,6 +261,9 @@ func TestSleep(t *testing.T) {
 		c <-chan int
 		t time.Duration
 	}
+	invoker := func(ctx context.Context, a args) <-chan int {
+		return Sleep(ctx, a.c, a.t)
+	}
 	tests := []chantest.Case[int, args]{
 		{
 			Name: "no count",
@@ -245,6 +272,7 @@ func TestSleep(t *testing.T) {
 				t: scaledTime(100),
 			},
 			Context: chantest.ContextWithTimeout(scaledTime(5)),
+			Invoker: invoker,
 			Want:    []int{},
 		},
 		{
@@ -254,6 +282,7 @@ func TestSleep(t *testing.T) {
 				t: scaledTime(100),
 			},
 			Context: chantest.ContextWithTimeout(scaledTime(150)),
+			Invoker: invoker,
 			Want:    []int{1},
 		},
 		{
@@ -263,6 +292,7 @@ func TestSleep(t *testing.T) {
 				t: scaledTime(100),
 			},
 			Context: chantest.ContextWithTimeout(scaledTime(250)),
+			Invoker: invoker,
 			Want:    []int{1, 2},
 		},
 		{
@@ -273,6 +303,7 @@ func TestSleep(t *testing.T) {
 			},
 			// nervousness
 			Context: chantest.ContextWithTimeout(scaledTime(10)),
+			Invoker: invoker,
 			Want:    []int{1, 2, 3},
 		},
 		{
@@ -287,6 +318,7 @@ func TestSleep(t *testing.T) {
 			},
 			//Non-determined
 			Context: chantest.ContextWithTimeout(scaledTime(210)),
+			Invoker: invoker,
 			Want:    []int{},
 		},
 		{
@@ -301,17 +333,15 @@ func TestSleep(t *testing.T) {
 			},
 			//Non-determined
 			Context: chantest.ContextWithTimeout(scaledTime(240)),
+			Invoker: invoker,
 			Want:    []int{1},
 		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return Sleep(ctx, a.c, a.t)
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt.Context, caller, tt.Args)
+			got := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Sleep() = %v, want %v", got, tt.Want)
 			}
