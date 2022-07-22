@@ -68,7 +68,7 @@ func TestOrDone(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt)
+			got, _ := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
 			}
@@ -125,7 +125,7 @@ func TestRepeat(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt)
+			got, _ := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
 			}
@@ -160,17 +160,23 @@ func TestRepeatFunc(t *testing.T) {
 			Args: args{
 				fn: nil,
 			},
-			Context: chantest.ContextWithCountCancel(5),
-			Invoker: invoker,
-			Want:    []int{},
+			Context:    chantest.ContextWithCountCancel(5),
+			Invoker:    invoker,
+			PanicValue: "fn must not be nil",
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt)
-			if !reflect.DeepEqual(got, tt.Want) {
+			got, err := chantest.Run(tt)
+			if tt.PanicValue != nil {
+				if err == nil {
+					t.Errorf("Run() doesn't panic, want '%v'", tt.PanicValue)
+				} else if err != tt.PanicValue {
+					t.Errorf("Run() panic '%v', want '%v'", err, tt.PanicValue)
+				}
+			} else if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
 			}
 		})
@@ -238,7 +244,7 @@ func TestTake(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt)
+			got, _ := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Take() = %v, want %v", got, tt.Want)
 			}
@@ -341,7 +347,7 @@ func TestSleep(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := chantest.Run(tt)
+			got, _ := chantest.Run(tt)
 			if !reflect.DeepEqual(got, tt.Want) {
 				t.Errorf("Sleep() = %v, want %v", got, tt.Want)
 			}

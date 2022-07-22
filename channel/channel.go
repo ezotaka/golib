@@ -85,13 +85,12 @@ func RepeatFunc[T any](
 	ctx context.Context,
 	fn func() T,
 ) <-chan T {
+	if fn == nil {
+		panic("fn must not be nil")
+	}
 	valueChan := make(chan T)
 	go func() {
 		defer close(valueChan)
-		if fn == nil {
-			// TODO: it must panic
-			return
-		}
 		for {
 			select {
 			case <-ctx.Done():

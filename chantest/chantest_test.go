@@ -96,12 +96,11 @@ func TestRun(t *testing.T) {
 		fn     func(context.Context, int) <-chan int
 		fnArgs int
 	}
-	tests := []struct {
-		name     string
-		args     args
-		want     []int
-		isPanic  bool
-		panicMsg string
+	tests := []struct { // TODO: use Case[C, A]
+		name       string
+		args       args
+		want       []int
+		panicValue any
 	}{
 		{
 			name: "channel closed normally",
@@ -191,22 +190,13 @@ func TestRun(t *testing.T) {
 				ctx: context.Background(),
 				fn:  nil,
 			},
-			isPanic:  true,
-			panicMsg: "c.Invoker must not be nil",
+			panicValue: "c.Invoker must not be nil",
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-
-			defer func() {
-				if r := recover(); tt.isPanic && r == nil {
-					t.Errorf("Run() doesn't panic, want '%v'", tt.panicMsg)
-				} else if tt.isPanic && r != tt.panicMsg {
-					t.Errorf("Run() panic '%v', want '%v'", r, tt.panicMsg)
-				}
-			}()
 
 			c := Case[int, int]{
 				Name:    tt.name,
@@ -215,8 +205,14 @@ func TestRun(t *testing.T) {
 				Invoker: tt.args.fn,
 				Want:    tt.want,
 			}
-			got := Run(c)
-			if !reflect.DeepEqual(got, tt.want) {
+			got, err := Run(c)
+			if tt.panicValue != nil {
+				if err == nil {
+					t.Errorf("Run() doesn't panic, want '%v'", tt.panicValue)
+				} else if err != tt.panicValue {
+					t.Errorf("Run() panic '%v', want '%v'", err, tt.panicValue)
+				}
+			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Run() = %v, want %v", got, tt.want)
 			}
 		})

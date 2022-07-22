@@ -61,13 +61,22 @@ type Case[C any, A any] struct {
 
 	// Expected channel values
 	Want []C
+
+	// Expected panic
+	PanicValue any
 }
 
-// TODO: catch panic and return error
-func Run[C any, A any](tc Case[C, A]) []C {
+type PanicError error
+
+func Run[C any, A any](tc Case[C, A]) (ret []C, err any) {
+	defer func() {
+		err = recover()
+	}()
+
 	if tc.Invoker == nil {
 		panic("c.Invoker must not be nil")
 	}
+
 	ctx := tc.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -109,5 +118,7 @@ func Run[C any, A any](tc Case[C, A]) []C {
 			}
 		}
 	}()
-	return conv.ToSlice(context.Background(), endedChan)
+	//return conv.ToSlice(context.Background(), endedChan), err
+	ret = conv.ToSlice(context.Background(), endedChan)
+	return
 }
