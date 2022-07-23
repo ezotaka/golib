@@ -7,6 +7,7 @@ import (
 
 	"github.com/ezotaka/golib/chantest"
 	"github.com/ezotaka/golib/conv"
+	"github.com/ezotaka/golib/eztest"
 )
 
 // function to be tested
@@ -32,13 +33,13 @@ func TestOrDone(t *testing.T) {
 	type args struct {
 		channel <-chan int
 	}
-	invoker := chantest.Invoker[args, <-chan int]{
+	invoker := eztest.Invoker[args, <-chan int]{
 		Name: "OrDone",
 		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
 			return OrDone(ctx, a.channel), nil
 		},
 	}
-	tests := []chantest.Case[args, <-chan int, []int]{
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "no interruption due to done",
 			Args: args{
@@ -52,7 +53,7 @@ func TestOrDone(t *testing.T) {
 			Args: args{
 				channel: counter(3),
 			},
-			Context: chantest.ContextWithCountCancel(2),
+			Context: eztest.ContextWithCountCancel(2),
 			Invoker: invoker,
 			Want:    []int{1, 2},
 		},
@@ -61,7 +62,7 @@ func TestOrDone(t *testing.T) {
 			Args: args{
 				channel: nil,
 			},
-			Context: chantest.ContextWithTimeout(100 * time.Millisecond),
+			Context: eztest.ContextWithTimeout(100 * time.Millisecond),
 			Invoker: invoker,
 			Want:    []int{},
 		},
@@ -70,7 +71,7 @@ func TestOrDone(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.RunChannel(tt); err != nil {
+			if _, err := chantest.Run(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -81,19 +82,19 @@ func TestRepeat(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	invoker := chantest.Invoker[args, <-chan int]{
+	invoker := eztest.Invoker[args, <-chan int]{
 		Name: "Repeat",
 		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
 			return Repeat(ctx, a.values...), nil
 		},
 	}
-	tests := []chantest.Case[args, <-chan int, []int]{
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "1",
 			Args: args{
 				values: []int{1},
 			},
-			Context: chantest.ContextWithCountCancel(5),
+			Context: eztest.ContextWithCountCancel(5),
 			Invoker: invoker,
 			Want:    []int{1, 1, 1, 1, 1},
 		},
@@ -102,7 +103,7 @@ func TestRepeat(t *testing.T) {
 			Args: args{
 				values: []int{1, 2},
 			},
-			Context: chantest.ContextWithCountCancel(5),
+			Context: eztest.ContextWithCountCancel(5),
 			Invoker: invoker,
 			Want:    []int{1, 2, 1, 2, 1},
 		},
@@ -111,7 +112,7 @@ func TestRepeat(t *testing.T) {
 			Args: args{
 				values: []int{1, 2, 3, 4, 5, 6},
 			},
-			Context: chantest.ContextWithCountCancel(5),
+			Context: eztest.ContextWithCountCancel(5),
 			Invoker: invoker,
 			Want:    []int{1, 2, 3, 4, 5},
 		},
@@ -120,7 +121,7 @@ func TestRepeat(t *testing.T) {
 			Args: args{
 				values: []int{},
 			},
-			Context: chantest.ContextWithCountCancel(5),
+			Context: eztest.ContextWithCountCancel(5),
 			Invoker: invoker,
 			Want:    []int{},
 		},
@@ -129,7 +130,7 @@ func TestRepeat(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.RunChannel(tt); err != nil {
+			if _, err := chantest.Run(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -145,19 +146,19 @@ func TestRepeatFunc(t *testing.T) {
 	type args struct {
 		fn func() int
 	}
-	invoker := chantest.Invoker[args, <-chan int]{
+	invoker := eztest.Invoker[args, <-chan int]{
 		Name: "RepeatFunc",
 		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
 			return RepeatFunc(ctx, a.fn), nil
 		},
 	}
-	tests := []chantest.Case[args, <-chan int, []int]{
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "5 count",
 			Args: args{
 				fn: increment,
 			},
-			Context: chantest.ContextWithCountCancel(5),
+			Context: eztest.ContextWithCountCancel(5),
 			Invoker: invoker,
 			Want:    []int{1, 2, 3, 4, 5},
 		},
@@ -166,7 +167,7 @@ func TestRepeatFunc(t *testing.T) {
 			Args: args{
 				fn: nil,
 			},
-			Context: chantest.ContextWithCountCancel(5),
+			Context: eztest.ContextWithCountCancel(5),
 			Invoker: invoker,
 			Panic:   "fn must not be nil",
 		},
@@ -175,7 +176,7 @@ func TestRepeatFunc(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.RunChannel(tt); err != nil {
+			if _, err := chantest.Run(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -187,14 +188,14 @@ func TestTake(t *testing.T) {
 		valueChan <-chan int
 		num       int
 	}
-	invoker := chantest.Invoker[args, <-chan int]{
+	invoker := eztest.Invoker[args, <-chan int]{
 		Name: "Take",
 		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
 			return Take(ctx, a.valueChan, a.num), nil
 		},
 	}
 
-	tests := []chantest.Case[args, <-chan int, []int]{
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "take 1",
 			Args: args{
@@ -228,7 +229,7 @@ func TestTake(t *testing.T) {
 				valueChan: conv.ToChan(1, 2, 3, 4),
 				num:       3,
 			},
-			Context: chantest.ContextWithCountCancel(2),
+			Context: eztest.ContextWithCountCancel(2),
 			Invoker: invoker,
 			Want:    []int{1, 2},
 		},
@@ -246,7 +247,7 @@ func TestTake(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.RunChannel(tt); err != nil {
+			if _, err := chantest.Run(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -268,20 +269,20 @@ func TestSleep(t *testing.T) {
 		c <-chan int
 		t time.Duration
 	}
-	invoker := chantest.Invoker[args, <-chan int]{
+	invoker := eztest.Invoker[args, <-chan int]{
 		Name: "Sleep",
 		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
 			return Sleep(ctx, a.c, a.t), nil
 		},
 	}
-	tests := []chantest.Case[args, <-chan int, []int]{
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "no count",
 			Args: args{
 				c: conv.ToChan(1, 2, 3),
 				t: scaledTime(100),
 			},
-			Context: chantest.ContextWithTimeout(scaledTime(5)),
+			Context: eztest.ContextWithTimeout(scaledTime(5)),
 			Invoker: invoker,
 			Want:    []int{},
 		},
@@ -291,7 +292,7 @@ func TestSleep(t *testing.T) {
 				c: conv.ToChan(1, 2, 3),
 				t: scaledTime(100),
 			},
-			Context: chantest.ContextWithTimeout(scaledTime(150)),
+			Context: eztest.ContextWithTimeout(scaledTime(150)),
 			Invoker: invoker,
 			Want:    []int{1},
 		},
@@ -301,7 +302,7 @@ func TestSleep(t *testing.T) {
 				c: conv.ToChan(1, 2, 3),
 				t: scaledTime(100),
 			},
-			Context: chantest.ContextWithTimeout(scaledTime(250)),
+			Context: eztest.ContextWithTimeout(scaledTime(250)),
 			Invoker: invoker,
 			Want:    []int{1, 2},
 		},
@@ -312,7 +313,7 @@ func TestSleep(t *testing.T) {
 				t: scaledTime(0),
 			},
 			// nervousness
-			Context: chantest.ContextWithTimeout(scaledTime(10)),
+			Context: eztest.ContextWithTimeout(scaledTime(10)),
 			Invoker: invoker,
 			Want:    []int{1, 2, 3},
 		},
@@ -327,7 +328,7 @@ func TestSleep(t *testing.T) {
 				t: scaledTime(100),
 			},
 			//Non-determined
-			Context: chantest.ContextWithTimeout(scaledTime(210)),
+			Context: eztest.ContextWithTimeout(scaledTime(210)),
 			Invoker: invoker,
 			Want:    []int{},
 		},
@@ -342,7 +343,7 @@ func TestSleep(t *testing.T) {
 				t: scaledTime(100),
 			},
 			//Non-determined
-			Context: chantest.ContextWithTimeout(scaledTime(240)),
+			Context: eztest.ContextWithTimeout(scaledTime(240)),
 			Invoker: invoker,
 			Want:    []int{1},
 		},
@@ -351,7 +352,7 @@ func TestSleep(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.RunChannel(tt); err != nil {
+			if _, err := chantest.Run(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -364,7 +365,7 @@ func TestSleep(t *testing.T) {
 // 		in  <-chan int
 // 		num int
 // 	}
-// 	tests := []chantest.Case[int, args]{
+// 	tests := []eztest.Case[int, args]{
 // 		{
 // 			Name: "length = 2",
 // 			Args: args{
