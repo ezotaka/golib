@@ -2,6 +2,8 @@ package chantest
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/ezotaka/golib/conv"
@@ -44,23 +46,39 @@ func ContextWithTimeout(t time.Duration) context.Context {
 	return ctx
 }
 
-// TODO: Add type parameter R which is type of return of function to be tested
+// Type of invoker the method to be tested
+type Invoker[A any, R any] struct {
+	Name   string
+	Invoke func(context.Context, A) (
+		R, // value returned by the function to be invoked
+		error, // error returned by the function to be invoked
+	)
+}
+
 // Test case for function like func(context.Context, [spread A]) <-chan C
-type Case[C any, A any] struct {
+type Case[
+	// Args type of the function to be tested
+	A any,
+	// Return type of the function to be tested
+	R any,
+	// Want type of the function test
+	W any,
+] struct {
 	// Name of test case
 	Name string
-
-	// Args passed to the target method
-	Args A
 
 	// Context to cancel the channel which is return of function to be tested
 	Context context.Context
 
+	// Args passed to the target method
+	Args A
+
+	// ? use Call (https://pkg.go.dev/reflect#Value.Call)
 	// Invoker the method to be tested
-	Invoker func(context.Context, A) (<-chan C, error)
+	Invoker Invoker[A, R]
 
 	// Expected channel values
-	Want []C
+	Want W
 
 	// Expected error
 	ErrMsg string
@@ -69,39 +87,74 @@ type Case[C any, A any] struct {
 	Panic any
 }
 
-type PanicError error
+func notPanicMsg(name string, want any) string {
+	return fmt.Sprintf("%s() doesn't panic, want panic '%v'", name, want)
+}
 
-// TODO: Run function precesses assertion
+func wrongPanicMsg(name string, got, want any) string {
+	return fmt.Sprintf("%s() panic '%v', want panic '%v'", name, got, want)
+}
+
+func notErrorMsg(name, want string) string {
+	return fmt.Sprintf("%s() doesn't error, want error '%v'", name, want)
+}
+
+func wrongErrorMsg(name, got, want string) string {
+	return fmt.Sprintf("%s() error '%v', want error '%v'", name, got, want)
+}
+
+func notEqualsMsg[W any](name string, got, want W) string {
+	return fmt.Sprintf("s() = %v, want %v", got, want)
+}
+
 // Run test using test case defined by Case
 func Run[
-	// Type of chanel which is returned by the function to be tested
-	C any,
-	// Type of args which is passed to the function to be tested
+	// Args type of the function to be tested
 	A any,
+	// Return type of the function to be tested
+	R any,
+	// Return type of Run function
+	W any,
 ](
 	// Test case for the function to be tested
-	tc Case[C, A],
-) (
-	// Channel which is returned by the function to be tested
-	ret []C,
-	// Message of error which is returned by the function to be tested
-	errMsg string,
-	// Value of panic which is caused by the function to be tested
-	panicVal any,
-) {
-	panicInRun := false
+	tc Case[A, R, W],
+	// PostProcessor return of the function to be tested
+	pp func(context.Context, R, error) (W, error),
+) (got W, err error) {
+	panicInRun := false // ? not needed ?
+	if tc.Invoker.Invoke == nil {
+		panicInRun = true
+		panic("c.Invoker.Invoke must not be nil")
+	}
+
+	name := tc.Invoker.Name
+	var errMsg string
+	var panicVal any
+
 	defer func() {
 		if !panicInRun {
 			if r := recover(); r != nil {
 				panicVal = r
 			}
 		}
+		if tc.Panic != nil {
+			// expected panic
+			if panicVal == nil {
+				err = fmt.Errorf(notPanicMsg(name, tc.Panic))
+			} else if panicVal != tc.Panic {
+				err = fmt.Errorf(wrongPanicMsg(name, panicVal, tc.Panic))
+			}
+		} else if tc.ErrMsg != "" {
+			// expected error
+			if errMsg == "" {
+				err = fmt.Errorf(notErrorMsg(name, tc.ErrMsg))
+			} else if errMsg != tc.ErrMsg {
+				err = fmt.Errorf(wrongErrorMsg(name, errMsg, tc.ErrMsg))
+			}
+		} else if !reflect.DeepEqual(got, tc.Want) {
+			err = fmt.Errorf(notEqualsMsg(name, got, tc.Want))
+		}
 	}()
-
-	if tc.Invoker == nil {
-		panicInRun = true
-		panic("c.Invoker must not be nil")
-	}
 
 	ctx := tc.Context
 	if ctx == nil {
@@ -111,44 +164,69 @@ func Run[
 	defer cancel()
 
 	// invoke the method to be tested
-	returnedChan, returnedErr := tc.Invoker(ctx, tc.Args)
-	if returnedErr != nil {
-		errMsg = returnedErr.Error()
-		return
+	testedVal, testedErr := tc.Invoker.Invoke(ctx, tc.Args)
+
+	// post process
+	ppVal, ppErr := pp(ctx, testedVal, testedErr)
+
+	if ppErr == nil {
+		got = ppVal
+	} else {
+		errMsg = ppErr.Error()
 	}
+	return
+}
 
-	endedChan := make(chan C)
-	go func() {
-		defer close(endedChan)
-
-		if cnt, ok := countToCancel(ctx); ok && cnt == 0 {
-			return
+// Run channel test using test case defined by Case
+func RunChannel[
+	// Type of args which is passed to the function to be tested
+	A any,
+	// Type of chanel which is returned by the function to be tested
+	C any,
+](
+	// Test case for the function to be tested
+	tc Case[A, <-chan C, []C],
+) ([]C, error) {
+	// [post process]
+	// Channel c which is returned by the function to be tested can be canceled by the context.
+	// Synchronously converts the value sent from the channel into slices.
+	pp := func(ctx context.Context, c <-chan C, err error) ([]C, error) {
+		if err != nil {
+			return nil, err
 		}
+		endedChan := make(chan C)
+		go func() {
+			defer close(endedChan)
 
-		count := 1
-		for {
-			select {
-			case <-ctx.Done():
+			if cnt, ok := countToCancel(ctx); ok && cnt == 0 {
 				return
-			default:
+			}
+
+			count := 1
+			for {
 				select {
-				case val, ok := <-returnedChan:
-					if !ok {
-						return
-					}
-					endedChan <- val
-					if cnt, ok := countToCancel(ctx); ok {
-						if cnt == count {
+				case <-ctx.Done():
+					return
+				default:
+					select {
+					case val, ok := <-c:
+						if !ok {
 							return
 						}
+						endedChan <- val
+						if cnt, ok := countToCancel(ctx); ok {
+							if cnt == count {
+								return
+							}
+						}
+						count++
+					default:
 					}
-					count++
-				default:
 				}
 			}
-		}
-	}()
-	//return conv.ToSlice(context.Background(), endedChan), err
-	ret = conv.ToSlice(context.Background(), endedChan)
-	return
+		}()
+		return conv.ToSlice(context.Background(), endedChan), nil
+	}
+
+	return Run(tc, pp)
 }

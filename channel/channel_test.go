@@ -2,7 +2,6 @@ package channel
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
 
@@ -33,10 +32,13 @@ func TestOrDone(t *testing.T) {
 	type args struct {
 		channel <-chan int
 	}
-	invoker := func(ctx context.Context, a args) (<-chan int, error) {
-		return OrDone(ctx, a.channel), nil
+	invoker := chantest.Invoker[args, <-chan int]{
+		Name: "OrDone",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return OrDone(ctx, a.channel), nil
+		},
 	}
-	tests := []chantest.Case[int, args]{
+	tests := []chantest.Case[args, <-chan int, []int]{
 		{
 			Name: "no interruption due to done",
 			Args: args{
@@ -68,9 +70,8 @@ func TestOrDone(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got, _, _ := chantest.Run(tt)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
+			if _, err := chantest.RunChannel(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
@@ -80,10 +81,13 @@ func TestRepeat(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	invoker := func(ctx context.Context, a args) (<-chan int, error) {
-		return Repeat(ctx, a.values...), nil
+	invoker := chantest.Invoker[args, <-chan int]{
+		Name: "Repeat",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return Repeat(ctx, a.values...), nil
+		},
 	}
-	tests := []chantest.Case[int, args]{
+	tests := []chantest.Case[args, <-chan int, []int]{
 		{
 			Name: "1",
 			Args: args{
@@ -125,9 +129,8 @@ func TestRepeat(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got, _, _ := chantest.Run(tt)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
+			if _, err := chantest.RunChannel(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
@@ -142,10 +145,13 @@ func TestRepeatFunc(t *testing.T) {
 	type args struct {
 		fn func() int
 	}
-	invoker := func(ctx context.Context, a args) (<-chan int, error) {
-		return RepeatFunc(ctx, a.fn), nil
+	invoker := chantest.Invoker[args, <-chan int]{
+		Name: "RepeatFunc",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return RepeatFunc(ctx, a.fn), nil
+		},
 	}
-	tests := []chantest.Case[int, args]{
+	tests := []chantest.Case[args, <-chan int, []int]{
 		{
 			Name: "5 count",
 			Args: args{
@@ -169,15 +175,8 @@ func TestRepeatFunc(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got, _, panicVal := chantest.Run(tt)
-			if tt.Panic != nil {
-				if panicVal == nil {
-					t.Errorf("Run() doesn't panic, want '%v'", tt.Panic)
-				} else if panicVal != tt.Panic {
-					t.Errorf("Run() panic '%v', want '%v'", panicVal, tt.Panic)
-				}
-			} else if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
+			if _, err := chantest.RunChannel(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
@@ -188,11 +187,14 @@ func TestTake(t *testing.T) {
 		valueChan <-chan int
 		num       int
 	}
-	invoker := func(ctx context.Context, a args) (<-chan int, error) {
-		return Take(ctx, a.valueChan, a.num), nil
+	invoker := chantest.Invoker[args, <-chan int]{
+		Name: "Take",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return Take(ctx, a.valueChan, a.num), nil
+		},
 	}
 
-	tests := []chantest.Case[int, args]{
+	tests := []chantest.Case[args, <-chan int, []int]{
 		{
 			Name: "take 1",
 			Args: args{
@@ -244,9 +246,8 @@ func TestTake(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got, _, _ := chantest.Run(tt)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("Take() = %v, want %v", got, tt.Want)
+			if _, err := chantest.RunChannel(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
@@ -267,10 +268,13 @@ func TestSleep(t *testing.T) {
 		c <-chan int
 		t time.Duration
 	}
-	invoker := func(ctx context.Context, a args) (<-chan int, error) {
-		return Sleep(ctx, a.c, a.t), nil
+	invoker := chantest.Invoker[args, <-chan int]{
+		Name: "Sleep",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return Sleep(ctx, a.c, a.t), nil
+		},
 	}
-	tests := []chantest.Case[int, args]{
+	tests := []chantest.Case[args, <-chan int, []int]{
 		{
 			Name: "no count",
 			Args: args{
@@ -347,9 +351,8 @@ func TestSleep(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got, _, _ := chantest.Run(tt)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("Sleep() = %v, want %v", got, tt.Want)
+			if _, err := chantest.RunChannel(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}

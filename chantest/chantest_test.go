@@ -71,182 +71,280 @@ func scaledTime(t float64) time.Duration {
 	return time.Duration(t*timeScale) * time.Millisecond
 }
 
-func TestRun(t *testing.T) {
-	// count up every 100 msec until end
-	counter := func(end int) (<-chan int, error) {
-		if end < 0 {
-			return nil, errors.New("end must be zero or positive")
+func TestRunChannel(t *testing.T) {
+	const errMsgOK = "end is zero"
+	const panicOK = "end is negative"
+	const errMsgNG = "NG ErrMsg"
+	const panicNG = "NG Panic"
+
+	// counter function is tested by RunChannel function
+	//
+	// return channel which sends [1, 2, ..., end] every scaledTime(100)
+	// error if end == 0
+	// panic if end < 0
+	counter := func(ctx context.Context, end int) (<-chan int, error) {
+		if end == 0 {
+			return nil, errors.New(errMsgOK)
+		} else if end < 0 {
+			panic(panicOK)
 		}
 		valChan := make(chan int)
 		go func() {
 			defer close(valChan)
 			count := 1
 			for {
-				time.Sleep(scaledTime(100))
-				valChan <- count
-				if count >= end {
+				select {
+				case <-ctx.Done():
 					return
+				case <-time.After(scaledTime(100)):
+					valChan <- count
+					if count >= end {
+						return
+					}
+					count++
 				}
-				count++
 			}
 		}()
 		return valChan, nil
 	}
-	counterCaller := func(_ context.Context, end int) (<-chan int, error) {
-		return counter(end)
+	type counterArgs struct {
+		end int
 	}
-	type args struct {
-		ctx    context.Context
-		fn     func(context.Context, int) (<-chan int, error)
-		fnArgs int
-	}
-	tests := []struct { // TODO: use Case[C, A]
-		name       string
-		args       args
-		want       []int
-		errMsg     string
-		panicValue any
-	}{
-		{
-			name: "channel closed normally",
-			args: args{
-				ctx:    context.Background(),
-				fn:     counterCaller,
-				fnArgs: 2,
-			},
-			want: []int{1, 2},
-		},
-		{
-			name: "channel closed by context with count 0",
-			args: args{
-				ctx:    ContextWithCountCancel(0),
-				fn:     counterCaller,
-				fnArgs: 2,
-			},
-			want: []int{},
-		},
-		{
-			name: "channel closed by context with count 1",
-			args: args{
-				ctx:    ContextWithCountCancel(1),
-				fn:     counterCaller,
-				fnArgs: 2,
-			},
-			want: []int{1},
-		},
-		{
-			name: "channel closed by context with count 2",
-			args: args{
-				ctx:    ContextWithCountCancel(2),
-				fn:     counterCaller,
-				fnArgs: 2,
-			},
-			want: []int{1, 2},
-		},
-		{
-			name: "channel closed by context with count 3",
-			args: args{
-				ctx:    ContextWithCountCancel(3),
-				fn:     counterCaller,
-				fnArgs: 2,
-			},
-			want: []int{1, 2},
-		},
-		// TODO: timeout test is instability
-		// {
-		// 	name: "channel closed by timeout 0",
-		// 	args: args{
-		// 		ctx:    ContextWithTimeout(scaledTime(50)),
-		// 		fn:     counterCaller,
-		// 		fnArgs: 2,
-		// 	},
-		// 	want: []int{},
-		// },
-		// {
-		// 	name: "channel closed by timeout 1",
-		// 	args: args{
-		// 		ctx:    ContextWithTimeout(scaledTime(150)),
-		// 		fn:     counterCaller,
-		// 		fnArgs: 2,
-		// 	},
-		// 	want: []int{1},
-		// },
-		// {
-		// 	name: "channel closed by timeout 2",
-		// 	args: args{
-		// 		ctx:    ContextWithTimeout(scaledTime(250)),
-		// 		fn:     counterCaller,
-		// 		fnArgs: 2,
-		// 	},
-		// 	want: []int{1, 2},
-		// },
-		{
-			name: "nil context is treated as context.Background()",
-			args: args{
-				ctx:    nil,
-				fn:     counterCaller,
-				fnArgs: 2,
-			},
-			want: []int{1, 2},
-		},
-		{
-			name: "catch error caused by the function to be tested",
-			args: args{
-				ctx:    context.Background(),
-				fn:     counterCaller,
-				fnArgs: -1,
-			},
-			errMsg: "end must be zero or positive",
-		},
-		{
-			name: "nil fn causes panic",
-			args: args{
-				ctx: context.Background(),
-				fn:  nil,
-			},
-			panicValue: "c.Invoker must not be nil",
+	counterInvoker := Invoker[counterArgs, <-chan int]{
+		Name: "counter",
+		Invoke: func(ctx context.Context, a counterArgs) (<-chan int, error) {
+			return counter(ctx, a.end)
 		},
 	}
+
+	// used for test of RunChannel
+	type runChannelArgs struct {
+		tc Case[counterArgs, <-chan int, []int]
+	}
+	runChannelInvoker := Invoker[runChannelArgs, []int]{
+		Name: "RunChannel",
+		Invoke: func(_ context.Context, a runChannelArgs) ([]int, error) {
+			return RunChannel(a.tc)
+		},
+	}
+
+	// shortcut value
+	ints1 := []int{1}
+	ints2 := []int{1, 2}
+
+	tests := []Case[runChannelArgs, []int, []int]{
+		{
+			Name: "OK closed normally",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "channel closed normally",
+					Args: counterArgs{
+						end: 2,
+					},
+					Invoker: counterInvoker,
+					Want:    ints2,
+				},
+			},
+			Invoker: runChannelInvoker,
+			Want:    ints2,
+		},
+		{
+			Name: "NG wrong Want, closed normally",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "channel closed normally",
+					Args: counterArgs{
+						end: 2,
+					},
+					Invoker: counterInvoker,
+					Want:    ints1,
+				},
+			},
+			Invoker: runChannelInvoker,
+			ErrMsg:  notEqualsMsg(counterInvoker.Name, ints2, ints1),
+		},
+		{
+			Name: "OK closed by context",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name:    "channel closed by context",
+					Context: ContextWithCountCancel(1),
+					Args: counterArgs{
+						end: 2,
+					},
+					Invoker: counterInvoker,
+					Want:    ints1,
+				},
+			},
+			Invoker: runChannelInvoker,
+			Want:    ints1,
+		},
+		{
+			Name: "NG wrong Want, closed by context",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name:    "channel closed by context",
+					Context: ContextWithCountCancel(1),
+					Args: counterArgs{
+						end: 2,
+					},
+					Invoker: counterInvoker,
+					Want:    ints2,
+				},
+			},
+			Invoker: runChannelInvoker,
+			ErrMsg:  notEqualsMsg(counterInvoker.Name, ints1, ints2),
+		},
+		{
+			Name: "OK error",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "end = 0",
+					Args: counterArgs{
+						end: 0,
+					},
+					Invoker: counterInvoker,
+					ErrMsg:  errMsgOK,
+				},
+			},
+			Invoker: runChannelInvoker,
+		},
+		{
+			Name: "NG wrong error",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "end = 0",
+					Args: counterArgs{
+						end: 0,
+					},
+					Invoker: counterInvoker,
+					ErrMsg:  errMsgNG,
+				},
+			},
+			Invoker: runChannelInvoker,
+			ErrMsg:  wrongErrorMsg(counterInvoker.Name, errMsgOK, errMsgNG),
+		},
+		{
+			Name: "NG not error",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "end = 1",
+					Args: counterArgs{
+						end: 1,
+					},
+					Invoker: counterInvoker,
+					ErrMsg:  errMsgOK,
+				},
+			},
+			Invoker: runChannelInvoker,
+			ErrMsg:  notErrorMsg(counterInvoker.Name, errMsgOK),
+		},
+
+		{
+			Name: "OK panic",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "end = -1",
+					Args: counterArgs{
+						end: -1,
+					},
+					Invoker: counterInvoker,
+					Panic:   panicOK,
+				},
+			},
+			Invoker: runChannelInvoker,
+		},
+		{
+			Name: "NG wrong panic",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "end = -1",
+					Args: counterArgs{
+						end: -1,
+					},
+					Invoker: counterInvoker,
+					Panic:   panicNG,
+				},
+			},
+			Invoker: runChannelInvoker,
+			ErrMsg:  wrongPanicMsg(counterInvoker.Name, panicOK, panicNG),
+		},
+		{
+			Name: "NG not panic",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "end = 1",
+					Args: counterArgs{
+						end: 1,
+					},
+					Invoker: counterInvoker,
+					Panic:   panicOK,
+				},
+			},
+			Invoker: runChannelInvoker,
+			ErrMsg:  notPanicMsg(counterInvoker.Name, panicOK),
+		},
+		// TODO: not passed
+		// {
+		// 	Name: "PANIC invoke",
+		// 	Args: runChannelArgs{
+		// 		tc: Case[counterArgs, <-chan int, []int]{
+		// 			Name: "end = 1",
+		// 			Args: counterArgs{
+		// 				end: 1,
+		// 			},
+		// 			Invoker: counterInvoker,
+		// 			Panic:   panicOK,
+		// 		},
+		// 	},
+		// 	Invoker: Invoker[runChannelArgs, []int]{
+		// 		Name:   "Invoke is nil",
+		// 		Invoke: nil,
+		// 	},
+		// 	Panic: "c.Invoker.Invoke must not be nil",
+		// },
+	}
+
+	// simple post processor that just returns the arguments as they are
+	pp := func(ctx context.Context, r []int, err error) ([]int, error) {
+		return r, err
+	}
+
 	for _, tt := range tests {
 		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-
-			var got []int
-			var panicVal any
-			var errMsg string
-
-			defer func() {
-				// process panic caused directory by Run function
-				if r := recover(); r != nil {
-					panicVal = r
-				}
-
-				if tt.panicValue != nil {
-					if panicVal == nil {
-						t.Errorf("Run() doesn't panic, want '%v'", tt.panicValue)
-					} else if panicVal != tt.panicValue {
-						t.Errorf("Run() panic '%v', want '%v'", panicVal, tt.panicValue)
-					}
-				} else if tt.errMsg != "" {
-					if errMsg == "" {
-						t.Errorf("Run() doesn't return error, want '%v'", tt.errMsg)
-					} else if errMsg != tt.errMsg {
-						t.Errorf("Run() returns '%v', want '%v'", errMsg, tt.errMsg)
-					}
-				} else if !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("Run() = %v, want %v", got, tt.want)
-				}
-			}()
-
-			c := Case[int, int]{
-				Name:    tt.name,
-				Args:    tt.args.fnArgs,
-				Context: tt.args.ctx,
-				Invoker: tt.args.fn,
-				Want:    tt.want,
+			if _, err := Run(tt, pp); err != nil {
+				t.Errorf(err.Error())
 			}
-			got, errMsg, panicVal = Run(c)
 		})
 	}
 }
+
+// TODO: write test
+// func TestRun(t *testing.T) {
+// 	type args struct {
+// 		tc Case[A, R, W]
+// 		pp func(context.Context, R, error) (W, error)
+// 	}
+// 	tests := []struct {
+// 		name    string
+// 		args    args
+// 		wantGot W
+// 		wantErr bool
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			gotGot, err := Run(tt.args.tc, tt.args.pp)
+// 			if (err != nil) != tt.wantErr {
+// 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
+// 				return
+// 			}
+// 			if !reflect.DeepEqual(gotGot, tt.wantGot) {
+// 				t.Errorf("Run() = %v, want %v", gotGot, tt.wantGot)
+// 			}
+// 		})
+// 	}
+// }
