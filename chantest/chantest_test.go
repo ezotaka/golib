@@ -284,25 +284,24 @@ func TestRunChannel(t *testing.T) {
 			Invoker: runChannelInvoker,
 			ErrMsg:  notPanicMsg(counterInvoker.Name, panicOK),
 		},
-		// TODO: not passed
-		// {
-		// 	Name: "PANIC invoke",
-		// 	Args: runChannelArgs{
-		// 		tc: Case[counterArgs, <-chan int, []int]{
-		// 			Name: "end = 1",
-		// 			Args: counterArgs{
-		// 				end: 1,
-		// 			},
-		// 			Invoker: counterInvoker,
-		// 			Panic:   panicOK,
-		// 		},
-		// 	},
-		// 	Invoker: Invoker[runChannelArgs, []int]{
-		// 		Name:   "Invoke is nil",
-		// 		Invoke: nil,
-		// 	},
-		// 	Panic: "c.Invoker.Invoke must not be nil",
-		// },
+		{
+			Name: "PANIC invoke",
+			Args: runChannelArgs{
+				tc: Case[counterArgs, <-chan int, []int]{
+					Name: "channel closed normally",
+					Args: counterArgs{
+						end: 2,
+					},
+					Invoker: Invoker[counterArgs, <-chan int]{
+						Name:   "Invoke is nil",
+						Invoke: nil,
+					},
+					Want: ints2,
+				},
+			},
+			Invoker: runChannelInvoker,
+			Panic:   "c.Invoker.Invoke must not be nil",
+		},
 	}
 
 	// simple post processor that just returns the arguments as they are
