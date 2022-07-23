@@ -2,6 +2,7 @@ package chantest
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -72,7 +73,10 @@ func scaledTime(t float64) time.Duration {
 
 func TestRun(t *testing.T) {
 	// count up every 100 msec until end
-	counter := func(end int) <-chan int {
+	counter := func(end int) (<-chan int, error) {
+		if end < 0 {
+			return nil, errors.New("end must be zero or positive")
+		}
 		valChan := make(chan int)
 		go func() {
 			defer close(valChan)
@@ -86,20 +90,21 @@ func TestRun(t *testing.T) {
 				count++
 			}
 		}()
-		return valChan
+		return valChan, nil
 	}
-	counterCaller := func(_ context.Context, end int) <-chan int {
+	counterCaller := func(_ context.Context, end int) (<-chan int, error) {
 		return counter(end)
 	}
 	type args struct {
 		ctx    context.Context
-		fn     func(context.Context, int) <-chan int
+		fn     func(context.Context, int) (<-chan int, error)
 		fnArgs int
 	}
 	tests := []struct { // TODO: use Case[C, A]
 		name       string
 		args       args
 		want       []int
+		errMsg     string
 		panicValue any
 	}{
 		{
@@ -185,6 +190,15 @@ func TestRun(t *testing.T) {
 			want: []int{1, 2},
 		},
 		{
+			name: "catch error caused by the function to be tested",
+			args: args{
+				ctx:    context.Background(),
+				fn:     counterCaller,
+				fnArgs: -1,
+			},
+			errMsg: "end must be zero or positive",
+		},
+		{
 			name: "nil fn causes panic",
 			args: args{
 				ctx: context.Background(),
@@ -198,6 +212,33 @@ func TestRun(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			var got []int
+			var panicVal any
+			var errMsg string
+
+			defer func() {
+				// process panic caused directory by Run function
+				if r := recover(); r != nil {
+					panicVal = r
+				}
+
+				if tt.panicValue != nil {
+					if panicVal == nil {
+						t.Errorf("Run() doesn't panic, want '%v'", tt.panicValue)
+					} else if panicVal != tt.panicValue {
+						t.Errorf("Run() panic '%v', want '%v'", panicVal, tt.panicValue)
+					}
+				} else if tt.errMsg != "" {
+					if errMsg == "" {
+						t.Errorf("Run() doesn't return error, want '%v'", tt.errMsg)
+					} else if errMsg != tt.errMsg {
+						t.Errorf("Run() returns '%v', want '%v'", errMsg, tt.errMsg)
+					}
+				} else if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("Run() = %v, want %v", got, tt.want)
+				}
+			}()
+
 			c := Case[int, int]{
 				Name:    tt.name,
 				Args:    tt.args.fnArgs,
@@ -205,16 +246,7 @@ func TestRun(t *testing.T) {
 				Invoker: tt.args.fn,
 				Want:    tt.want,
 			}
-			got, err := Run(c)
-			if tt.panicValue != nil {
-				if err == nil {
-					t.Errorf("Run() doesn't panic, want '%v'", tt.panicValue)
-				} else if err != tt.panicValue {
-					t.Errorf("Run() panic '%v', want '%v'", err, tt.panicValue)
-				}
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Run() = %v, want %v", got, tt.want)
-			}
+			got, errMsg, panicVal = Run(c)
 		})
 	}
 }

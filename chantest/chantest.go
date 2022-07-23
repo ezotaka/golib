@@ -57,23 +57,49 @@ type Case[C any, A any] struct {
 	Context context.Context
 
 	// Invoker the method to be tested
-	Invoker func(context.Context, A) <-chan C
+	Invoker func(context.Context, A) (<-chan C, error)
 
 	// Expected channel values
 	Want []C
 
+	// Expected error
+	ErrMsg string
+
 	// Expected panic
-	PanicValue any
+	Panic any
 }
 
 type PanicError error
 
-func Run[C any, A any](tc Case[C, A]) (ret []C, err any) {
+// TODO: Run function precesses assertion
+// Run test using test case defined by Case
+func Run[
+	// Type of chanel which is returned by the function to be tested
+	C any,
+	// Type of args which is passed to the function to be tested
+	A any,
+](
+	// Test case for the function to be tested
+	tc Case[C, A],
+) (
+	// Channel which is returned by the function to be tested
+	ret []C,
+	// Message of error which is returned by the function to be tested
+	errMsg string,
+	// Value of panic which is caused by the function to be tested
+	panicVal any,
+) {
+	panicInRun := false
 	defer func() {
-		err = recover()
+		if !panicInRun {
+			if r := recover(); r != nil {
+				panicVal = r
+			}
+		}
 	}()
 
 	if tc.Invoker == nil {
+		panicInRun = true
 		panic("c.Invoker must not be nil")
 	}
 
@@ -82,14 +108,18 @@ func Run[C any, A any](tc Case[C, A]) (ret []C, err any) {
 		ctx = context.Background()
 	}
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// invoke the method to be tested
-	returnedChan := tc.Invoker(ctx, tc.Args)
+	returnedChan, returnedErr := tc.Invoker(ctx, tc.Args)
+	if returnedErr != nil {
+		errMsg = returnedErr.Error()
+		return
+	}
 
 	endedChan := make(chan C)
 	go func() {
 		defer close(endedChan)
-		defer cancel()
 
 		if cnt, ok := countToCancel(ctx); ok && cnt == 0 {
 			return
