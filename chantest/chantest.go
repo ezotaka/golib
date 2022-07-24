@@ -21,7 +21,7 @@ func Run[
 	// Channel c which is returned by the function to be tested can be canceled by the context.
 	// Synchronously converts the value sent from the channel into slices.
 	pp := func(ctx context.Context, c <-chan C, err error) ([]C, error) {
-		if err != nil {
+		if c == nil || err != nil {
 			return nil, err
 		}
 		endedChan := make(chan C)

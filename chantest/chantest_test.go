@@ -19,7 +19,7 @@ func scaledTime(t float64) time.Duration {
 	return time.Duration(t*timeScale) * time.Millisecond
 }
 
-func TestRunChannel(t *testing.T) {
+func TestRunl(t *testing.T) {
 	const errMsgOK = "end is zero"
 	const panicOK = "end is negative"
 
@@ -67,8 +67,8 @@ func TestRunChannel(t *testing.T) {
 	type runChannelArgs struct {
 		tc eztest.Case[counterArgs, <-chan int, []int]
 	}
-	runChannelInvoker := eztest.Invoker[runChannelArgs, []int]{
-		Name: "RunChannel",
+	runInvoker := eztest.Invoker[runChannelArgs, []int]{
+		Name: "Run",
 		Invoke: func(_ context.Context, a runChannelArgs) ([]int, error) {
 			return Run(a.tc)
 		},
@@ -91,7 +91,7 @@ func TestRunChannel(t *testing.T) {
 					Want:    ints2,
 				},
 			},
-			Invoker: runChannelInvoker,
+			Invoker: runInvoker,
 			Want:    ints2,
 		},
 		{
@@ -107,8 +107,48 @@ func TestRunChannel(t *testing.T) {
 					Want:    ints1,
 				},
 			},
-			Invoker: runChannelInvoker,
+			Invoker: runInvoker,
 			Want:    ints1,
+		},
+		{
+			Name: "OK nil channel is returned by the method to be tested",
+			Args: runChannelArgs{
+				tc: eztest.Case[counterArgs, <-chan int, []int]{
+					Name: "return nil channel",
+					Args: counterArgs{
+						end: 2,
+					},
+					Invoker: eztest.Invoker[counterArgs, <-chan int]{
+						Name: "nil returner",
+						Invoke: func(ctx context.Context, a counterArgs) (<-chan int, error) {
+							return nil, nil
+						},
+					},
+					Want: nil,
+				},
+			},
+			Invoker: runInvoker,
+			Want:    nil,
+		},
+		{
+			Name: "NG wrong error ,nil channel is returned by the method to be tested",
+			Args: runChannelArgs{
+				tc: eztest.Case[counterArgs, <-chan int, []int]{
+					Name: "return nil channel",
+					Args: counterArgs{
+						end: 2,
+					},
+					Invoker: eztest.Invoker[counterArgs, <-chan int]{
+						Name: "nil returner",
+						Invoke: func(ctx context.Context, a counterArgs) (<-chan int, error) {
+							return nil, nil
+						},
+					},
+					Want: ints1,
+				},
+			},
+			Invoker: runInvoker,
+			ErrMsg:  "nil returner() = [], want [1]",
 		},
 		{
 			Name: "OK error",
@@ -122,7 +162,7 @@ func TestRunChannel(t *testing.T) {
 					ErrMsg:  errMsgOK,
 				},
 			},
-			Invoker: runChannelInvoker,
+			Invoker: runInvoker,
 		},
 		{
 			Name: "OK panic",
@@ -136,7 +176,7 @@ func TestRunChannel(t *testing.T) {
 					Panic:   panicOK,
 				},
 			},
-			Invoker: runChannelInvoker,
+			Invoker: runInvoker,
 		},
 	}
 

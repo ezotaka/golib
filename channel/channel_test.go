@@ -215,13 +215,13 @@ func TestTake(t *testing.T) {
 			Want:    []int{1, 2},
 		},
 		{
-			Name: "try to take closed",
+			Name: "can't take from closed channel",
 			Args: args{
 				valueChan: conv.ToChan(1, 2),
 				num:       3,
 			},
 			Invoker: invoker,
-			Want:    []int{1, 2, 0},
+			Want:    []int{1, 2},
 		},
 		{
 			Name: "try to take 3 but canceled at 2",
@@ -240,7 +240,7 @@ func TestTake(t *testing.T) {
 				num:       3,
 			},
 			Invoker: invoker,
-			Want:    []int{},
+			Want:    nil,
 		},
 	}
 	for _, tt := range tests {

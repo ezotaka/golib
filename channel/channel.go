@@ -107,17 +107,21 @@ func Take[T any](
 	valueChan <-chan T,
 	num int,
 ) <-chan T {
+	if valueChan == nil {
+		return nil
+	}
 	takeChan := make(chan T)
 	go func() {
 		defer close(takeChan)
-		if valueChan == nil {
-			return
-		}
 		for i := 0; i < num; i++ {
 			select {
 			case <-ctx.Done():
 				return
-			case takeChan <- <-valueChan:
+			case v, ok := <-valueChan:
+				if !ok {
+					return
+				}
+				takeChan <- v
 			}
 		}
 	}()

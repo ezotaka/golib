@@ -103,7 +103,7 @@ func wrongErrorMsg(name, got, want string) string {
 }
 
 func notEqualsMsg[W any](name string, got, want W) string {
-	return fmt.Sprintf("s() = %v, want %v", got, want)
+	return fmt.Sprintf("%s() = %v, want %v", name, got, want)
 }
 
 // Run test using test case defined by Case
@@ -136,21 +136,28 @@ func Run[
 				panicVal = r
 			}
 		}
-		if tc.Panic != nil {
-			// expected panic
-			if panicVal == nil {
-				err = fmt.Errorf(notPanicMsg(name, tc.Panic))
-			} else if panicVal != tc.Panic {
+
+		if panicVal != nil {
+			if panicVal != tc.Panic {
 				err = fmt.Errorf(wrongPanicMsg(name, panicVal, tc.Panic))
 			}
-		} else if tc.ErrMsg != "" {
-			// expected error
-			if errMsg == "" {
-				err = fmt.Errorf(notErrorMsg(name, tc.ErrMsg))
-			} else if errMsg != tc.ErrMsg {
+			return
+		} else if tc.Panic != nil {
+			err = fmt.Errorf(notPanicMsg(name, tc.Panic))
+			return
+		}
+
+		if errMsg != "" {
+			if errMsg != tc.ErrMsg {
 				err = fmt.Errorf(wrongErrorMsg(name, errMsg, tc.ErrMsg))
 			}
-		} else if !reflect.DeepEqual(got, tc.Want) {
+			return
+		} else if tc.ErrMsg != "" {
+			err = fmt.Errorf(notErrorMsg(name, tc.ErrMsg))
+			return
+		}
+
+		if !reflect.DeepEqual(got, tc.Want) {
 			err = fmt.Errorf(notEqualsMsg(name, got, tc.Want))
 		}
 	}()
