@@ -1,4 +1,4 @@
-package chantest
+package channel
 
 import (
 	"context"
@@ -12,14 +12,14 @@ import (
 const (
 	// If TestSleep fails, increase this value.
 	// The test will stabilize, but will take longer.
-	timeScale = 20
+	timeScale = 5
 )
 
 func scaledTime(t float64) time.Duration {
 	return time.Duration(t*timeScale) * time.Millisecond
 }
 
-func TestRunl(t *testing.T) {
+func TestRunTest(t *testing.T) {
 	const errMsgOK = "end is zero"
 	const panicOK = "end is negative"
 
@@ -68,9 +68,9 @@ func TestRunl(t *testing.T) {
 		tc eztest.Case[counterArgs, <-chan int, []int]
 	}
 	runInvoker := eztest.Invoker[runChannelArgs, []int]{
-		Name: "Run",
+		Name: "RunTest",
 		Invoke: func(_ context.Context, a runChannelArgs) ([]int, error) {
-			return Run(a.tc)
+			return RunTest(a.tc)
 		},
 	}
 

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ezotaka/golib/chantest"
 	"github.com/ezotaka/golib/conv"
 	"github.com/ezotaka/golib/eztest"
 )
@@ -71,7 +70,7 @@ func TestOrDone(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.Run(tt); err != nil {
+			if _, err := RunTest(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -130,7 +129,7 @@ func TestRepeat(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.Run(tt); err != nil {
+			if _, err := RunTest(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -176,7 +175,7 @@ func TestRepeatFunc(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.Run(tt); err != nil {
+			if _, err := RunTest(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
@@ -247,21 +246,11 @@ func TestTake(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.Run(tt); err != nil {
+			if _, err := RunTest(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})
 	}
-}
-
-const (
-	// If TestSleep fails, increase this value.
-	// The test will stabilize, but will take longer.
-	timeScale = 5
-)
-
-func scaledTime(t float64) time.Duration {
-	return time.Duration(t*timeScale) * time.Millisecond
 }
 
 func TestSleep(t *testing.T) {
@@ -352,7 +341,7 @@ func TestSleep(t *testing.T) {
 		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := chantest.Run(tt); err != nil {
+			if _, err := RunTest(tt); err != nil {
 				t.Errorf(err.Error())
 			}
 		})

@@ -1,4 +1,4 @@
-package chantest
+package channel
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"github.com/ezotaka/golib/eztest"
 )
 
-// Run channel test using test case defined by Case
-func Run[
+// RunTest channel test using test case defined by Case
+func RunTest[
 	// Type of args which is passed to the function to be tested
 	A any,
 	// Type of chanel which is returned by the function to be tested
