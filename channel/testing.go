@@ -7,6 +7,15 @@ import (
 	"github.com/ezotaka/golib/eztest"
 )
 
+// return channel which can be cancelled by context
+func withCountCancel[T any](ctx context.Context, c <-chan T) <-chan T {
+	if cnt, ok := eztest.CountToCancel(ctx); ok {
+		return OrDone(ctx, Take(ctx, c, cnt))
+	} else {
+		return OrDone(ctx, c)
+	}
+}
+
 // RunTest channel test using test case defined by Case
 func RunTest[
 	// Type of args which is passed to the function to be tested
@@ -24,38 +33,7 @@ func RunTest[
 		if c == nil || err != nil {
 			return nil, err
 		}
-		endedChan := make(chan C)
-		go func() {
-			defer close(endedChan)
-
-			if cnt, ok := eztest.CountToCancel(ctx); ok && cnt == 0 {
-				return
-			}
-
-			count := 1
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					select {
-					case val, ok := <-c:
-						if !ok {
-							return
-						}
-						endedChan <- val
-						if cnt, ok := eztest.CountToCancel(ctx); ok {
-							if cnt == count {
-								return
-							}
-						}
-						count++
-					default:
-					}
-				}
-			}
-		}()
-		return conv.ToSlice(context.Background(), endedChan), nil
+		return conv.ToSlice(context.Background(), withCountCancel(ctx, c)), nil
 	}
 
 	return eztest.Run(tc, pp)

@@ -12,7 +12,7 @@ import (
 const (
 	// If TestSleep fails, increase this value.
 	// The test will stabilize, but will take longer.
-	timeScale = 5
+	timeScale = 20
 )
 
 func scaledTime(t float64) time.Duration {
