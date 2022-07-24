@@ -2,9 +2,11 @@ package channel
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ezotaka/golib/conv"
+	"github.com/ezotaka/golib/eztest"
 )
 
 // function to be tested
@@ -30,174 +32,108 @@ func TestOrDone(t *testing.T) {
 	type args struct {
 		channel <-chan int
 	}
-	tests := []TestCase[int, args]{
+	invoker := eztest.Invoker[args, <-chan int]{
+		Name: "OrDone",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return OrDone(ctx, a.channel), nil
+		},
+	}
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "no interruption due to done",
 			Args: args{
 				channel: counter(3),
 			},
-			Want: []int{1, 2, 3},
+			Invoker: invoker,
+			Want:    []int{1, 2, 3},
 		},
 		{
-			Name:          "interruption due to done",
-			IsDoneByValue: func(v int) bool { return v == 2 },
+			Name: "interruption due to done",
 			Args: args{
 				channel: counter(3),
 			},
-			Want: []int{1, 2},
+			Context: eztest.ContextWithCountCancel(2),
+			Invoker: invoker,
+			Want:    []int{1, 2},
 		},
 		{
-			Name:         "blocked by reading nil channel, but done after 100 msec",
-			IsDoneByTime: 100 * time.Millisecond,
+			Name: "blocked by reading nil channel, but done after 100 msec",
 			Args: args{
 				channel: nil,
 			},
-			Want: []int{},
+			Context: eztest.ContextWithTimeout(100 * time.Millisecond),
+			Invoker: invoker,
+			Want:    []int{},
 		},
 	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return OrDone(ctx, a.channel)
-	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("OrDone() = %v, want %v", got, tt.Want)
+			if _, err := RunTest(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
-}
-
-func TestToChan(t *testing.T) {
-	type args struct {
-		values []int
-	}
-	tests := []TestCase[int, args]{
-		{
-			Name: "length=0",
-			Args: args{
-				values: []int{},
-			},
-			Want: []int{},
-		},
-		{
-			Name: "length=1",
-			Args: args{
-				values: []int{1},
-			},
-			Want: []int{1},
-		},
-		{
-			Name: "length=2",
-			Args: args{
-				values: []int{1, 2},
-			},
-			Want: []int{1, 2},
-		},
-	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return ToChan(a.values...)
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			t.Parallel()
-			got := GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("ToChan() = %v, want %v", got, tt.Want)
-			}
-		})
-	}
-}
-
-func TestToSlice(t *testing.T) {
-	type args struct {
-		ctx context.Context
-		c   <-chan int
-	}
-	tests := []TestCase[int, args]{
-		{
-			Name: "{1, 2}",
-			Args: args{
-				ctx: context.Background(),
-				c:   ToChan(1, 2),
-			},
-			Want: []int{1, 2},
-		},
-		{
-			Name: "empty channel",
-			Args: args{
-				ctx: context.Background(),
-				c:   ToChan[int](),
-			},
-			Want: []int{},
-		},
-		{
-			Name: "nil channel",
-			Args: args{
-				ctx: context.Background(),
-				c:   nil,
-			},
-			Want: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			if got := ToSlice(tt.Args.ctx, tt.Args.c); !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("ToSlice() = %v, want %v", got, tt.Want)
-			}
-		})
-	}
-
 }
 
 func TestRepeat(t *testing.T) {
 	type args struct {
 		values []int
 	}
-	tests := []TestCase[int, args]{
+	invoker := eztest.Invoker[args, <-chan int]{
+		Name: "Repeat",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return Repeat(ctx, a.values...), nil
+		},
+	}
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "1",
 			Args: args{
 				values: []int{1},
 			},
-			Want: []int{1, 1, 1, 1, 1},
+			Context: eztest.ContextWithCountCancel(5),
+			Invoker: invoker,
+			Want:    []int{1, 1, 1, 1, 1},
 		},
 		{
 			Name: "1,2",
 			Args: args{
 				values: []int{1, 2},
 			},
-			Want: []int{1, 2, 1, 2, 1},
+			Context: eztest.ContextWithCountCancel(5),
+			Invoker: invoker,
+			Want:    []int{1, 2, 1, 2, 1},
 		},
 		{
 			Name: "1,2,3,4,5,6",
 			Args: args{
 				values: []int{1, 2, 3, 4, 5, 6},
 			},
-			Want: []int{1, 2, 3, 4, 5},
+			Context: eztest.ContextWithCountCancel(5),
+			Invoker: invoker,
+			Want:    []int{1, 2, 3, 4, 5},
 		},
 		{
 			Name: "no params",
 			Args: args{
 				values: []int{},
 			},
-			Want: []int{0, 0, 0, 0, 0},
+			Context: eztest.ContextWithCountCancel(5),
+			Invoker: invoker,
+			Want:    []int{},
 		},
 	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return Take(ctx, Repeat(ctx, a.values...), 5)
-	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("Repeat() = %v, want %v", got, tt.Want)
+			if _, err := RunTest(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
-
 }
 
 func TestRepeatFunc(t *testing.T) {
@@ -209,31 +145,38 @@ func TestRepeatFunc(t *testing.T) {
 	type args struct {
 		fn func() int
 	}
-	tests := []TestCase[int, args]{
+	invoker := eztest.Invoker[args, <-chan int]{
+		Name: "RepeatFunc",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return RepeatFunc(ctx, a.fn), nil
+		},
+	}
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "5 count",
 			Args: args{
 				fn: increment,
 			},
-			Want: []int{1, 2, 3, 4, 5},
+			Context: eztest.ContextWithCountCancel(5),
+			Invoker: invoker,
+			Want:    []int{1, 2, 3, 4, 5},
 		},
 		{
 			Name: "nil func",
 			Args: args{
 				fn: nil,
 			},
-			Want: []int{0, 0, 0, 0, 0},
+			Context: eztest.ContextWithCountCancel(5),
+			Invoker: invoker,
+			Panic:   "fn must not be nil",
 		},
 	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return Take(ctx, RepeatFunc(ctx, a.fn), 5)
-	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("RepeatFunc() = %v, want %v", got, tt.Want)
+			if _, err := RunTest(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
@@ -244,30 +187,50 @@ func TestTake(t *testing.T) {
 		valueChan <-chan int
 		num       int
 	}
-	tests := []TestCase[int, args]{
+	invoker := eztest.Invoker[args, <-chan int]{
+		Name: "Take",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return Take(ctx, a.valueChan, a.num), nil
+		},
+	}
+
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "take 1",
 			Args: args{
-				valueChan: ToChan(1, 2),
+				valueChan: conv.ToChan(1, 2),
 				num:       1,
 			},
-			Want: []int{1},
+			Invoker: invoker,
+			Want:    []int{1},
 		},
 		{
 			Name: "take 2",
 			Args: args{
-				valueChan: ToChan(1, 2),
+				valueChan: conv.ToChan(1, 2),
 				num:       2,
 			},
-			Want: []int{1, 2},
+			Invoker: invoker,
+			Want:    []int{1, 2},
 		},
 		{
-			Name: "try to take closed",
+			Name: "can't take from closed channel",
 			Args: args{
-				valueChan: ToChan(1, 2),
+				valueChan: conv.ToChan(1, 2),
 				num:       3,
 			},
-			Want: []int{1, 2, 0},
+			Invoker: invoker,
+			Want:    []int{1, 2},
+		},
+		{
+			Name: "try to take 3 but canceled at 2",
+			Args: args{
+				valueChan: conv.ToChan(1, 2, 3, 4),
+				num:       3,
+			},
+			Context: eztest.ContextWithCountCancel(2),
+			Invoker: invoker,
+			Want:    []int{1, 2},
 		},
 		{
 			Name: "nil channel",
@@ -275,167 +238,156 @@ func TestTake(t *testing.T) {
 				valueChan: nil,
 				num:       3,
 			},
-			Want: []int{},
+			Invoker: invoker,
+			Want:    nil,
 		},
 	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return Take(ctx, a.valueChan, a.num)
-	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("Take() = %v, want %v", got, tt.Want)
+			if _, err := RunTest(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
-}
-
-const (
-	// If TestSleep fails, increase this value.
-	// The test will stabilize, but will take longer.
-	sleepTestScale = 5
-)
-
-func sleepTime(t float64) time.Duration {
-	return time.Duration(t*sleepTestScale) * time.Millisecond
 }
 
 func TestSleep(t *testing.T) {
 	type args struct {
-		c func(context.Context) <-chan int
+		c <-chan int
 		t time.Duration
 	}
-	tests := []TestCase[int, args]{
+	invoker := eztest.Invoker[args, <-chan int]{
+		Name: "Sleep",
+		Invoke: func(ctx context.Context, a args) (<-chan int, error) {
+			return Sleep(ctx, a.c, a.t), nil
+		},
+	}
+	tests := []eztest.Case[args, <-chan int, []int]{
 		{
 			Name: "no count",
 			Args: args{
-				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
-				},
-				t: sleepTime(100),
+				c: conv.ToChan(1, 2, 3),
+				t: scaledTime(100),
 			},
-			IsDoneByTime: sleepTime(5),
-			Want:         []int{},
+			Context: eztest.ContextWithTimeout(scaledTime(5)),
+			Invoker: invoker,
+			Want:    []int{},
 		},
 		{
 			Name: "sleep 1",
 			Args: args{
-				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
-				},
-				t: sleepTime(100),
+				c: conv.ToChan(1, 2, 3),
+				t: scaledTime(100),
 			},
-			IsDoneByTime: sleepTime(150),
-			Want:         []int{1},
+			Context: eztest.ContextWithTimeout(scaledTime(150)),
+			Invoker: invoker,
+			Want:    []int{1},
 		},
 		{
 			Name: "sleep 2",
 			Args: args{
-				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
-				},
-				t: sleepTime(100),
+				c: conv.ToChan(1, 2, 3),
+				t: scaledTime(100),
 			},
-			IsDoneByTime: sleepTime(250),
-			Want:         []int{1, 2},
+			Context: eztest.ContextWithTimeout(scaledTime(250)),
+			Invoker: invoker,
+			Want:    []int{1, 2},
 		},
 		{
 			Name: "0 time sleep",
 			Args: args{
-				c: func(ctx context.Context) <-chan int {
-					return ToChan(1, 2, 3)
-				},
-				t: sleepTime(0),
+				c: conv.ToChan(1, 2, 3),
+				t: scaledTime(0),
 			},
 			// nervousness
-			IsDoneByTime: sleepTime(10),
-			Want:         []int{1, 2, 3},
+			Context: eztest.ContextWithTimeout(scaledTime(10)),
+			Invoker: invoker,
+			Want:    []int{1, 2, 3},
 		},
 		{
 			Name: "cannot read (total sleep > deadline)",
 			Args: args{
-				c: func(ctx context.Context) <-chan int {
-					return Sleep(
-						ctx,
-						ToChan(1, 2, 3),
-						sleepTime(120))
-				},
-				t: sleepTime(100),
+				c: Sleep(
+					context.Background(),
+					conv.ToChan(1, 2, 3),
+					scaledTime(120),
+				),
+				t: scaledTime(100),
 			},
 			//Non-determined
-			IsDoneByTime: sleepTime(210),
-			Want:         []int{},
+			Context: eztest.ContextWithTimeout(scaledTime(210)),
+			Invoker: invoker,
+			Want:    []int{},
 		},
 		{
 			Name: "can read (total sleep < deadline)",
 			Args: args{
-				c: func(ctx context.Context) <-chan int {
-					return Sleep(
-						ctx,
-						ToChan(1, 2, 3),
-						sleepTime(120))
-				},
-				t: sleepTime(100),
+				c: Sleep(
+					context.Background(),
+					conv.ToChan(1, 2, 3),
+					scaledTime(120),
+				),
+				t: scaledTime(100),
 			},
 			//Non-determined
-			IsDoneByTime: sleepTime(240),
-			Want:         []int{1},
+			Context: eztest.ContextWithTimeout(scaledTime(240)),
+			Invoker: invoker,
+			Want:    []int{1},
 		},
 	}
-	caller := func(ctx context.Context, a args) <-chan int {
-		return Sleep(ctx, (a.c)(ctx), a.t)
-	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			got := GetTestedValues(tt, caller)
-			if !reflect.DeepEqual(got, tt.Want) {
-				t.Errorf("Sleep() = %v, want %v", got, tt.Want)
+			if _, err := RunTest(tt); err != nil {
+				t.Errorf(err.Error())
 			}
 		})
 	}
 }
 
-func TestTee(t *testing.T) {
-	type args struct {
-		in  <-chan int
-		num int
-	}
-	tests := []TestCase[int, args]{
-		{
-			Name: "length = 2",
-			Args: args{
-				in:  ToChan(1, 2),
-				num: 1,
-			},
-			Want: []int{1, 2},
-		},
-		// TODO: test below doesn't work
-		// {
-		// 	Name: "canceled",
-		// 	Args: args{
-		// 		in:  ToChan(1, 2),
-		// 		num: 1,
-		// 	},
-		// 	IsDoneByIndex: func(i int) bool { return i == 0 },
-		// 	Want:          []int{1},
-		// },
-	}
-	caller := func(ctx context.Context, a args) (<-chan int, <-chan int) {
-		return Tee(ctx, a.in)
-	}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			t.Parallel()
-			got1, got2 := GetTestedValues2(tt, caller)
-			if !reflect.DeepEqual(got1, tt.Want) {
-				t.Errorf("Take() got1 = %v, want %v", got1, tt.Want)
-			}
-			if !reflect.DeepEqual(got2, tt.Want) {
-				t.Errorf("Take() got2 = %v, want %v", got2, tt.Want)
-			}
-		})
-	}
-}
+// TODO: Write test
+// func TestTee(t *testing.T) {
+// 	type args struct {
+// 		in  <-chan int
+// 		num int
+// 	}
+// 	tests := []eztest.Case[int, args]{
+// 		{
+// 			Name: "length = 2",
+// 			Args: args{
+// 				in:  conv.ToChan(1, 2),
+// 				num: 1,
+// 			},
+// 			Want: []int{1, 2},
+// 		},
+// 		// TODO: test below doesn't work
+// 		// {
+// 		// 	Name: "canceled",
+// 		// 	Args: args{
+// 		// 		in:  ToChan(1, 2),
+// 		// 		num: 1,
+// 		// 	},
+// 		// 	IsDoneByIndex: func(i int) bool { return i == 0 },
+// 		// 	Want:          []int{1},
+// 		// },
+// 	}
+// 	caller := func(ctx context.Context, a args) (<-chan int, <-chan int) {
+// 		return Tee(ctx, a.in)
+// 	}
+// 	for _, tt := range tests {
+// 		tt := tt
+// 		t.Run(tt.Name, func(t *testing.T) {
+// 			t.Parallel()
+// 			got1, got2 := chantest.GetTestedValues2(tt, caller)
+// 			if !reflect.DeepEqual(got1, tt.Want) {
+// 				t.Errorf("Take() got1 = %v, want %v", got1, tt.Want)
+// 			}
+// 			if !reflect.DeepEqual(got2, tt.Want) {
+// 				t.Errorf("Take() got2 = %v, want %v", got2, tt.Want)
+// 			}
+// 		})
+// 	}
+// }

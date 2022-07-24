@@ -2,7 +2,6 @@ package channel
 
 import (
 	"context"
-	"sync"
 	"time"
 )
 
@@ -62,45 +61,6 @@ func OrDone[T any](
 	return valChan
 }
 
-// Convert values to channel
-func ToChan[T any](values ...T) <-chan T {
-	ch := make(chan T, len(values))
-	go func() {
-		defer close(ch)
-		for _, v := range values {
-			ch <- v
-		}
-	}()
-	return ch
-}
-
-// Convert channel to slice synchronously
-// This function is blocked until ctx is done or c is closed
-func ToSlice[T any](ctx context.Context, c <-chan T) []T {
-	if c == nil {
-		return nil
-	}
-	got := []T{}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case v, ok := <-c:
-				if !ok {
-					return
-				}
-				got = append(got, v)
-			}
-		}
-	}()
-	wg.Wait()
-	return got
-}
-
 func Repeat[T any](ctx context.Context, values ...T) <-chan T {
 	valuesChan := make(chan T)
 	go func() {
@@ -125,12 +85,12 @@ func RepeatFunc[T any](
 	ctx context.Context,
 	fn func() T,
 ) <-chan T {
+	if fn == nil {
+		panic("fn must not be nil")
+	}
 	valueChan := make(chan T)
 	go func() {
 		defer close(valueChan)
-		if fn == nil {
-			return
-		}
 		for {
 			select {
 			case <-ctx.Done():
@@ -147,17 +107,21 @@ func Take[T any](
 	valueChan <-chan T,
 	num int,
 ) <-chan T {
+	if valueChan == nil {
+		return nil
+	}
 	takeChan := make(chan T)
 	go func() {
 		defer close(takeChan)
-		if valueChan == nil {
-			return
-		}
 		for i := 0; i < num; i++ {
 			select {
 			case <-ctx.Done():
 				return
-			case takeChan <- <-valueChan:
+			case v, ok := <-valueChan:
+				if !ok {
+					return
+				}
+				takeChan <- v
 			}
 		}
 	}()
