@@ -1,5 +1,10 @@
 package channel
 
+import (
+	"context"
+	"time"
+)
+
 func Or[T any](channels ...<-chan T) <-chan T {
 	switch len(channels) {
 	case 0:
@@ -32,7 +37,7 @@ func Or[T any](channels ...<-chan T) <-chan T {
 
 // return channel which is closed when channel or done is closed
 func OrDone[T any](
-	done <-chan any,
+	ctx context.Context,
 	channel <-chan T,
 ) <-chan T {
 	valChan := make(chan T)
@@ -40,7 +45,7 @@ func OrDone[T any](
 		defer close(valChan)
 		for {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
 			case v, ok := <-channel:
 				if !ok {
@@ -48,7 +53,7 @@ func OrDone[T any](
 				}
 				select {
 				case valChan <- v:
-				case <-done:
+				case <-ctx.Done():
 				}
 			}
 		}
@@ -56,22 +61,7 @@ func OrDone[T any](
 	return valChan
 }
 
-func ToChan[T any](done <-chan any, values ...T) <-chan T {
-	ch := make(chan T, len(values))
-	go func() {
-		defer close(ch)
-		for _, v := range values {
-			select {
-			case <-done:
-				return
-			case ch <- v:
-			}
-		}
-	}()
-	return ch
-}
-
-func Repeat[T any](done <-chan any, values ...T) <-chan T {
+func Repeat[T any](ctx context.Context, values ...T) <-chan T {
 	valuesChan := make(chan T)
 	go func() {
 		defer close(valuesChan)
@@ -81,7 +71,7 @@ func Repeat[T any](done <-chan any, values ...T) <-chan T {
 		for {
 			for _, v := range values {
 				select {
-				case <-done:
+				case <-ctx.Done():
 					return
 				case valuesChan <- v:
 				}
@@ -92,18 +82,18 @@ func Repeat[T any](done <-chan any, values ...T) <-chan T {
 }
 
 func RepeatFunc[T any](
-	done <-chan any,
+	ctx context.Context,
 	fn func() T,
 ) <-chan T {
+	if fn == nil {
+		panic("fn must not be nil")
+	}
 	valueChan := make(chan T)
 	go func() {
 		defer close(valueChan)
-		if fn == nil {
-			return
-		}
 		for {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
 			case valueChan <- fn():
 			}
@@ -113,23 +103,84 @@ func RepeatFunc[T any](
 }
 
 func Take[T any](
-	done <-chan any,
+	ctx context.Context,
 	valueChan <-chan T,
 	num int,
 ) <-chan T {
+	if valueChan == nil {
+		return nil
+	}
 	takeChan := make(chan T)
 	go func() {
 		defer close(takeChan)
-		if valueChan == nil {
-			return
-		}
 		for i := 0; i < num; i++ {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				return
-			case takeChan <- <-valueChan:
+			case v, ok := <-valueChan:
+				if !ok {
+					return
+				}
+				takeChan <- v
 			}
 		}
 	}()
 	return takeChan
+}
+
+func Sleep[T any](
+	ctx context.Context,
+	c <-chan T,
+	t time.Duration,
+) <-chan T {
+	if t == 0 {
+		return c
+	}
+	ch := make(chan T)
+	go func() {
+		defer close(ch)
+		p := OrDone(ctx, c)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-p:
+				if !ok {
+					return
+				}
+				select {
+				case <-ctx.Done():
+				case <-time.After(t):
+					ch <- v
+				}
+			}
+		}
+	}()
+	return ch
+}
+
+// Split the channel into two channels
+func Tee[T any](
+	ctx context.Context,
+	in <-chan T,
+) (<-chan T, <-chan T) {
+	out1 := make(chan T)
+	out2 := make(chan T)
+	go func() {
+		defer close(out1)
+		defer close(out2)
+		for val := range OrDone(ctx, in) {
+			var out1, out2 = out1, out2
+			// Writes reliably to two channels
+			for i := 0; i < 2; i++ {
+				select {
+				case out1 <- val:
+					out1 = nil
+				case out2 <- val:
+					out2 = nil
+				}
+			}
+		}
+	}()
+	return out1, out2
 }
