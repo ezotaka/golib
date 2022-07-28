@@ -43,7 +43,7 @@ func TestEnumerate(t *testing.T) {
 		{
 			name: "normal",
 			args: args{
-				c: conv.ToChan("a", "b"),
+				c: conv.Chan("a", "b"),
 			},
 			want: []forEnum[string]{
 				{
@@ -73,7 +73,7 @@ func TestEnumerate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := conv.ToSlice(context.Background(), Enumerate(tt.args.c)); !reflect.DeepEqual(got, tt.want) {
+			if got := conv.Slice(Enumerate(tt.args.c)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Enumerate() = %v, want %v", got, tt.want)
 			}
 		})
@@ -250,7 +250,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 1",
 			Args: args{
-				valueChan: conv.ToChan(1, 2),
+				valueChan: conv.Chan(1, 2),
 				num:       1,
 			},
 			Invoker: invoker,
@@ -259,7 +259,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "take 2",
 			Args: args{
-				valueChan: conv.ToChan(1, 2),
+				valueChan: conv.Chan(1, 2),
 				num:       2,
 			},
 			Invoker: invoker,
@@ -268,7 +268,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "can't take from closed channel",
 			Args: args{
-				valueChan: conv.ToChan(1, 2),
+				valueChan: conv.Chan(1, 2),
 				num:       3,
 			},
 			Invoker: invoker,
@@ -277,7 +277,7 @@ func TestTake(t *testing.T) {
 		{
 			Name: "try to take 3 but canceled at 2",
 			Args: args{
-				valueChan: conv.ToChan(1, 2, 3, 4),
+				valueChan: conv.Chan(1, 2, 3, 4),
 				num:       3,
 			},
 			Context: eztest.ContextWithCountCancel(2),
@@ -320,7 +320,7 @@ func TestSleep(t *testing.T) {
 		{
 			Name: "no count",
 			Args: args{
-				c: conv.ToChan(1, 2, 3),
+				c: conv.Chan(1, 2, 3),
 				t: scaledTime(100),
 			},
 			Context: eztest.ContextWithTimeout(scaledTime(5)),
@@ -330,7 +330,7 @@ func TestSleep(t *testing.T) {
 		{
 			Name: "sleep 1",
 			Args: args{
-				c: conv.ToChan(1, 2, 3),
+				c: conv.Chan(1, 2, 3),
 				t: scaledTime(100),
 			},
 			Context: eztest.ContextWithTimeout(scaledTime(150)),
@@ -340,7 +340,7 @@ func TestSleep(t *testing.T) {
 		{
 			Name: "sleep 2",
 			Args: args{
-				c: conv.ToChan(1, 2, 3),
+				c: conv.Chan(1, 2, 3),
 				t: scaledTime(100),
 			},
 			Context: eztest.ContextWithTimeout(scaledTime(250)),
@@ -350,7 +350,7 @@ func TestSleep(t *testing.T) {
 		{
 			Name: "0 time sleep",
 			Args: args{
-				c: conv.ToChan(1, 2, 3),
+				c: conv.Chan(1, 2, 3),
 				t: scaledTime(0),
 			},
 			// nervousness
@@ -363,7 +363,7 @@ func TestSleep(t *testing.T) {
 			Args: args{
 				c: Sleep(
 					context.Background(),
-					conv.ToChan(1, 2, 3),
+					conv.Chan(1, 2, 3),
 					scaledTime(120),
 				),
 				t: scaledTime(100),
@@ -378,7 +378,7 @@ func TestSleep(t *testing.T) {
 			Args: args{
 				c: Sleep(
 					context.Background(),
-					conv.ToChan(1, 2, 3),
+					conv.Chan(1, 2, 3),
 					scaledTime(120),
 				),
 				t: scaledTime(100),
