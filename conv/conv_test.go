@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestToChan(t *testing.T) {
+func TestChan(t *testing.T) {
 	type args struct {
 		values []int
 	}
@@ -41,13 +41,13 @@ func TestToChan(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if got := Slice(Chan(tt.args.values...)); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ToChan() = %v, want %v", got, tt.want)
+				t.Errorf("Chan() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestToSlice(t *testing.T) {
+func TestSlice(t *testing.T) {
 	type args struct {
 		c <-chan int
 	}
@@ -83,7 +83,7 @@ func TestToSlice(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if got := Slice(tt.args.c); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ToChan() = %v, want %v", got, tt.want)
+				t.Errorf("Slice() = %v, want %v", got, tt.want)
 			}
 		})
 	}
