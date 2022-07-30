@@ -72,7 +72,9 @@ func TestEnumerate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := conv.Slice(Enumerate(tt.args.c)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Enumerate() = %v, want %v", got, tt.want)
 			}
