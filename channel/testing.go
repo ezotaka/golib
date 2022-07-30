@@ -33,7 +33,7 @@ func RunTest[
 		if c == nil || err != nil {
 			return nil, err
 		}
-		return conv.ToSlice(context.Background(), withCountCancel(ctx, c)), nil
+		return conv.Slice(withCountCancel(ctx, c)), nil
 	}
 
 	return eztest.Run(tc, pp)

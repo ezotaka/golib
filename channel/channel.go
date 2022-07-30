@@ -5,6 +5,29 @@ import (
 	"time"
 )
 
+// Type of enumerated value in for statement
+type forEnum[T any] struct {
+	I int
+	V T
+}
+
+// Enumerate value and index that are received from channel as forEnum struct
+func Enumerate[T any](c <-chan T) <-chan forEnum[T] {
+	if c == nil {
+		return nil
+	}
+	enumChan := make(chan forEnum[T])
+	go func() {
+		defer close(enumChan)
+		i := 0
+		for v := range c {
+			enumChan <- forEnum[T]{i, v}
+			i++
+		}
+	}()
+	return enumChan
+}
+
 func Or[T any](channels ...<-chan T) <-chan T {
 	switch len(channels) {
 	case 0:

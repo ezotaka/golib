@@ -1,12 +1,11 @@
 package conv
 
 import (
-	"context"
 	"reflect"
 	"testing"
 )
 
-func TestToChan(t *testing.T) {
+func TestChan(t *testing.T) {
 	type args struct {
 		values []int
 	}
@@ -41,14 +40,14 @@ func TestToChan(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := ToSlice(context.Background(), ToChan(tt.args.values...)); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ToChan() = %v, want %v", got, tt.want)
+			if got := Slice(Chan(tt.args.values...)); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Chan() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestToSlice(t *testing.T) {
+func TestSlice(t *testing.T) {
 	type args struct {
 		c <-chan int
 	}
@@ -60,14 +59,14 @@ func TestToSlice(t *testing.T) {
 		{
 			name: "{1, 2}",
 			args: args{
-				c: ToChan(1, 2),
+				c: Chan(1, 2),
 			},
 			want: []int{1, 2},
 		},
 		{
 			name: "empty channel",
 			args: args{
-				c: ToChan[int](),
+				c: Chan[int](),
 			},
 			want: []int{},
 		},
@@ -83,8 +82,8 @@ func TestToSlice(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := ToSlice(context.Background(), tt.args.c); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ToChan() = %v, want %v", got, tt.want)
+			if got := Slice(tt.args.c); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Slice() = %v, want %v", got, tt.want)
 			}
 		})
 	}
