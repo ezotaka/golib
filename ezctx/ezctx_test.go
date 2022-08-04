@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ezotaka/golib/channel"
+	"github.com/ezotaka/golib/channel/ctxpl"
 )
 
 func TestWithDone(t *testing.T) {
@@ -48,7 +48,7 @@ func TestWithDone(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := WithDone(tt.args.done)
-			c := channel.Repeat(ctx, 1)
+			c := ctxpl.Repeat(ctx, 1)
 			got := []int{}
 			for v := range c {
 				got = append(got, v)
