@@ -7,12 +7,65 @@ import (
 	"github.com/ezotaka/golib/eztest"
 )
 
+// TODO: copy and paste from ctxpl package
+// return channel which is closed when channel or done is closed
+func orDone[T any](
+	ctx context.Context,
+	channel <-chan T,
+) <-chan T {
+	valChan := make(chan T)
+	go func() {
+		defer close(valChan)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-channel:
+				if !ok {
+					return
+				}
+				select {
+				case valChan <- v:
+				case <-ctx.Done():
+				}
+			}
+		}
+	}()
+	return valChan
+}
+
+func take[T any](
+	ctx context.Context,
+	valueChan <-chan T,
+	num int,
+) <-chan T {
+	if valueChan == nil {
+		return nil
+	}
+	takeChan := make(chan T)
+	go func() {
+		defer close(takeChan)
+		for i := 0; i < num; i++ {
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-valueChan:
+				if !ok {
+					return
+				}
+				takeChan <- v
+			}
+		}
+	}()
+	return takeChan
+}
+
 // return channel which can be cancelled by context
 func withCountCancel[T any](ctx context.Context, c <-chan T) <-chan T {
 	if cnt, ok := eztest.CountToCancel(ctx); ok {
-		return OrDone(ctx, Take(ctx, c, cnt))
+		return orDone(ctx, take(ctx, c, cnt))
 	} else {
-		return OrDone(ctx, c)
+		return orDone(ctx, c)
 	}
 }
 
