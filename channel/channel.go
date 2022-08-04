@@ -86,21 +86,26 @@ func OrDone[T any](
 
 func Repeat[T any](ctx context.Context, values ...T) <-chan T {
 	valuesChan := make(chan T)
-	go func() {
-		defer close(valuesChan)
-		if len(values) == 0 {
-			return
-		}
-		for {
-			for _, v := range values {
-				select {
-				case <-ctx.Done():
-					return
-				case valuesChan <- v:
+	select {
+	case <-ctx.Done():
+		close(valuesChan)
+	default:
+		go func() {
+			defer close(valuesChan)
+			if len(values) == 0 {
+				return
+			}
+			for {
+				for _, v := range values {
+					select {
+					case <-ctx.Done():
+						return
+					case valuesChan <- v:
+					}
 				}
 			}
-		}
-	}()
+		}()
+	}
 	return valuesChan
 }
 
