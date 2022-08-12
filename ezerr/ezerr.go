@@ -17,68 +17,35 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package ezctx
+package ezerr
 
 import (
-	"reflect"
-	"testing"
-	"time"
-
-	"github.com/ezotaka/golib/channel/ctxpl"
+	"fmt"
+	"runtime/debug"
 )
 
-func TestWithDone(t *testing.T) {
-	closed := make(chan struct{})
-	close(closed)
-	type args struct {
-		done chan struct{}
+// Error with details
+type Error struct {
+	Inner      error
+	Message    string
+	StackTrace string
+	Misc       map[string]any
+}
+
+// Wrap returns Error including details of err
+func Wrap(err error, msg string, msgArgs ...any) Error {
+	return Error{
+		Inner:      err,
+		Message:    fmt.Sprintf(msg, msgArgs...),
+		StackTrace: string(debug.Stack()),
+		Misc:       make(map[string]any),
 	}
-	tests := []struct {
-		name      string
-		args      args
-		doneCount int
-		want      []int
-	}{
-		{
-			name: "normal done",
-			args: args{
-				done: make(chan struct{}),
-			},
-			doneCount: 2,
-			want:      []int{1, 1},
-		},
-		{
-			name: "already done",
-			args: args{
-				done: closed,
-			},
-			want: []int{},
-		},
-		{
-			name: "nil done",
-			args: args{
-				done: nil,
-			},
-			want: []int{},
-		},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			ctx := WithDone(tt.args.done)
-			c := ctxpl.Repeat(ctx, 1)
-			got := []int{}
-			for v := range c {
-				got = append(got, v)
-				if tt.doneCount == len(got) {
-					close(tt.args.done)
-					time.Sleep(100 * time.Millisecond)
-				}
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WithDone() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+}
+
+func (e *Error) Error() string {
+	return e.Message
+}
+
+func (e *Error) Unwrap() error {
+	return e.Inner
 }
