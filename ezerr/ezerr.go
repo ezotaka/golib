@@ -33,8 +33,8 @@ type Error struct {
 }
 
 // Wrap returns Error including details of err
-func Wrap(err error, msg string, msgArgs ...any) Error {
-	return Error{
+func Wrap(err error, msg string, msgArgs ...any) *Error {
+	return &Error{
 		Inner:      err,
 		Message:    fmt.Sprintf(msg, msgArgs...),
 		StackTrace: string(debug.Stack()),
