@@ -3,9 +3,11 @@
     "conv",
     "ctxpl",
     "donepl",
+    "ezctx",
     "ezerr",
     "ezotaka",
     "eztest",
+    "golib",
     "Takatomo"
   ]
 }
